@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Wallet, ShoppingBag, KanbanSquare, LogOut } from "lucide-react";
+import { LayoutDashboard, Wallet, ShoppingBag, KanbanSquare, LogOut, FolderOpen } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import komershLogo from "@assets/Komersh_(one-click_black_color)_1769958478589.png";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ const navigation = [
   { name: 'Financials', href: '/financials', icon: Wallet },
   { name: 'Products', href: '/products', icon: ShoppingBag },
   { name: 'Tasks', href: '/tasks', icon: KanbanSquare },
+  { name: 'Files', href: '/files', icon: FolderOpen },
 ];
 
 export function Sidebar() {

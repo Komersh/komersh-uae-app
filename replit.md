@@ -1,0 +1,117 @@
+# Komersh - UAE E-Commerce Operations Hub
+
+## Overview
+Komersh is an internal UAE e-commerce operations web application for managing Amazon/website sales. It provides comprehensive financial tracking, inventory management, task management (Kanban board), and file management capabilities.
+
+## Current State
+The application is fully functional with:
+- Dashboard with real-time stats, charts, and bank account balances
+- Multi-currency support (USD, AED, EUR)
+- Replit Auth integration with invitation-only access
+- Product research and inventory management
+- Sales tracking with profit calculation
+- Expense tracking with filtering
+- Kanban task board
+- File upload and management
+
+## Tech Stack
+- **Frontend**: React + TypeScript + Vite + TanStack Query
+- **Backend**: Express.js + TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **Auth**: Replit Auth (OIDC)
+- **UI**: Shadcn/ui + Tailwind CSS + Recharts
+
+## Project Structure
+```
+├── client/                    # Frontend application
+│   ├── src/
+│   │   ├── components/        # UI components
+│   │   ├── hooks/             # React hooks (use-*.ts)
+│   │   ├── pages/             # Page components
+│   │   └── lib/               # Utilities
+├── server/                    # Backend application
+│   ├── index.ts               # Express server entry
+│   ├── routes.ts              # API routes
+│   └── storage.ts             # Database operations
+├── shared/                    # Shared types and schemas
+│   ├── schema.ts              # Drizzle database schema
+│   └── routes.ts              # API route definitions
+└── attached_assets/           # Static assets (logo)
+```
+
+## Database Schema
+- **users**: User accounts with roles (admin, founder, marketing, warehouse, viewer)
+- **invitations**: Invitation tokens for new users
+- **potentialProducts**: Products under research
+- **inventory**: Purchased product inventory with stock tracking
+- **salesOrders**: Sales transactions with profit calculation
+- **bankAccounts**: Bank accounts with balance tracking
+- **expenses**: Business expenses with category and currency
+- **tasks**: Kanban board tasks with status
+- **attachments**: Uploaded files
+- **activityLog**: User activity history
+
+## Key Features
+
+### Dashboard
+- Revenue, profit, expense summary cards
+- Bank account balances display
+- Revenue vs Expenses chart
+- Expense breakdown pie chart
+- Activity log feed
+- Currency toggle (USD/AED/EUR)
+
+### Financials (/financials)
+- Expense ledger with filters (category, paid by)
+- Sales orders table
+- Monthly expense bar chart
+- Expense category pie chart
+- Bank account management with deposit/withdraw
+
+### Products (/products)
+- Product Research tab: Add products for research, buy to add to inventory
+- Inventory tab: Track stock levels, sell products
+- Low stock alerts
+- Multi-currency support
+
+### Tasks (/tasks)
+- Kanban board with drag-and-drop
+- Columns: To Do, In Progress, Done
+- Due dates and timestamps
+
+### Files (/files)
+- Upload files with folder organization
+- Folders: General, Invoices, Products, Receipts
+- Filter by folder
+
+## API Endpoints
+- `GET /api/dashboard/stats` - Dashboard statistics
+- `GET/POST /api/potential-products` - Product research CRUD
+- `POST /api/potential-products/:id/buy` - Purchase product to inventory
+- `GET/PUT /api/inventory` - Inventory management
+- `POST /api/inventory/:id/sell` - Sell inventory item
+- `GET /api/sales-orders` - Sales order list
+- `GET/POST /api/bank-accounts` - Bank account CRUD
+- `POST /api/bank-accounts/:id/adjust` - Adjust balance
+- `GET/POST/DELETE /api/expenses` - Expense management
+- `GET/POST/PUT/DELETE /api/tasks` - Task management
+- `GET/POST/DELETE /api/attachments` - File management
+- `GET /api/activity-log` - Activity history
+
+## Environment Variables
+- `DATABASE_URL` - PostgreSQL connection string (auto-configured)
+- `SESSION_SECRET` - Session encryption key
+- `ISSUER_URL` - OIDC issuer URL (Replit Auth)
+- `REPLIT_DOMAINS` - Deployment domains
+
+## Running the App
+The app runs on port 5000 with `npm run dev` which starts both the Express backend and Vite frontend.
+
+## Recent Changes (Feb 5, 2026)
+- Enhanced frontend pages with new hooks
+- Added comprehensive dashboard with charts
+- Implemented product research → inventory → sales flow
+- Added bank account management with balance adjustment
+- Added file upload section
+- Multi-currency display across all pages
+- Added expense filtering by category and paidBy

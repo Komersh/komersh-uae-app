@@ -12,6 +12,7 @@ import Dashboard from "@/pages/Dashboard";
 import Financials from "@/pages/Financials";
 import Products from "@/pages/Products";
 import Tasks from "@/pages/Tasks";
+import Files from "@/pages/Files";
 import Login from "@/pages/Login";
 
 function Router() {
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/financials" component={Financials} />
       <Route path="/products" component={Products} />
       <Route path="/tasks" component={Tasks} />
+      <Route path="/files" component={Files} />
       <Route component={NotFound} />
     </Switch>
   );
