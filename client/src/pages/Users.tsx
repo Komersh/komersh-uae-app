@@ -367,7 +367,7 @@ function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
   
   const inviteUser = useMutation({
     mutationFn: async (data: z.infer<typeof inviteSchema>) => {
-      return apiRequest("/api/invitations", { method: "POST", body: JSON.stringify(data) });
+      return apiRequest("POST", "/api/invitations", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });

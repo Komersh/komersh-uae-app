@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Wallet, ShoppingBag, KanbanSquare, LogOut, FolderOpen, Users } from "lucide-react";
+import { LayoutDashboard, Wallet, ShoppingBag, KanbanSquare, LogOut, FolderOpen, Users, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
@@ -57,17 +57,23 @@ export function Sidebar() {
         </nav>
 
         <div className="mt-auto">
-          <div className="flex items-center gap-x-4 rounded-xl bg-muted p-4 mb-4">
-            <img
-              className="h-10 w-10 rounded-full bg-primary/20 object-cover"
-              src={user?.profileImageUrl || `https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=9333ea&color=fff`}
-              alt=""
-            />
-            <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-sm font-semibold text-foreground truncate">{user?.firstName} {user?.lastName}</span>
-              <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
+          <Link href="/account">
+            <div 
+              className="flex items-center gap-x-4 rounded-xl bg-muted p-4 mb-4 cursor-pointer hover:bg-muted/80 transition-colors"
+              data-testid="nav-account"
+            >
+              <img
+                className="h-10 w-10 rounded-full bg-primary/20 object-cover"
+                src={user?.profileImageUrl || `https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=9333ea&color=fff`}
+                alt=""
+              />
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-sm font-semibold text-foreground truncate">{user?.firstName} {user?.lastName}</span>
+                <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
+              </div>
+              <Settings className="h-4 w-4 text-muted-foreground" />
             </div>
-          </div>
+          </Link>
           
           <button
             onClick={() => logout()}

@@ -30,6 +30,9 @@ export function useUpdateSalesOrder() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.salesOrders.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.dashboard.stats.path] });
+      queryClient.invalidateQueries({ queryKey: [api.bankAccounts.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.activityLog.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.bankTransactions.list.path] });
     },
   });
 }

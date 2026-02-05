@@ -274,14 +274,56 @@ export async function registerRoutes(
     res.json(orders);
   });
 
-  app.put(api.salesOrders.update.path, async (req, res) => {
+  app.put(api.salesOrders.update.path, isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const input = api.salesOrders.update.input.parse(req.body);
+      
+      const existingOrder = await storage.getSalesOrder(id);
+      if (!existingOrder) {
+        return res.status(404).json({ message: "Sales order not found" });
+      }
+      
       const order = await storage.updateSalesOrder(id, input);
       if (!order) {
         return res.status(404).json({ message: "Sales order not found" });
       }
+      
+      if (input.payoutStatus === 'received' && existingOrder.payoutStatus === 'pending') {
+        const netRevenue = parseFloat(existingOrder.netRevenue);
+        let payoutAccountName = 'Amazon Payouts';
+        if (existingOrder.channel?.toLowerCase().includes('noon')) {
+          payoutAccountName = 'Noon Payouts';
+        }
+        
+        const bankAccounts = await storage.getBankAccounts();
+        const payoutAccount = bankAccounts.find(a => a.name === payoutAccountName);
+        
+        if (payoutAccount) {
+          const currentBalance = parseFloat(payoutAccount.balance);
+          await storage.updateBankAccount(payoutAccount.id, {
+            balance: (currentBalance + netRevenue).toFixed(2),
+          });
+          
+          await storage.createBankTransaction({
+            bankAccountId: payoutAccount.id,
+            type: 'sale_payout',
+            amount: netRevenue.toFixed(2),
+            currency: existingOrder.currency || 'USD',
+            description: `Payout received for sale #${id}`,
+            relatedEntityType: 'sales_order',
+            relatedEntityId: id,
+          });
+          
+          await storage.createActivityLog({
+            action: 'payout_received',
+            entityType: 'sales_order',
+            entityId: id,
+            details: `Payout received: ${netRevenue.toFixed(2)} ${existingOrder.currency || 'USD'} for sale on ${existingOrder.channel}`,
+          });
+        }
+      }
+      
       res.json(order);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -737,6 +779,85 @@ export async function registerRoutes(
     }
     await storage.reactivateUser(id);
     res.json({ success: true });
+  });
+
+  // === ACCOUNT (Current User) ===
+  app.put('/api/account/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const profileSchema = z.object({
+        firstName: z.string().min(1, "First name is required"),
+        lastName: z.string().optional(),
+        profileImageUrl: z.string().optional(),
+      });
+      
+      const input = profileSchema.parse(req.body);
+      await storage.updateUserProfile(userId, {
+        firstName: input.firstName,
+        lastName: input.lastName || null,
+        profileImageUrl: input.profileImageUrl || null,
+      });
+      
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/account/password', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const passwordSchema = z.object({
+        currentPassword: z.string().min(1, "Current password is required"),
+        newPassword: z.string().min(8, "Password must be at least 8 characters"),
+        confirmPassword: z.string(),
+      }).refine((data) => data.newPassword === data.confirmPassword, {
+        message: "Passwords don't match",
+        path: ["confirmPassword"],
+      });
+      
+      const input = passwordSchema.parse(req.body);
+      
+      const usersList = await storage.getUsers();
+      const user = usersList.find(u => u.id === userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      if (user.passwordHash) {
+        const isValid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+        if (!isValid) {
+          return res.status(400).json({ message: "Current password is incorrect" });
+        }
+      }
+      
+      const newPasswordHash = await bcrypt.hash(input.newPassword, 10);
+      await storage.updateUserPassword(userId, newPasswordHash);
+      
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
   });
 
   // === SETTINGS ===

@@ -15,6 +15,7 @@ import Products from "@/pages/Products";
 import Tasks from "@/pages/Tasks";
 import Files from "@/pages/Files";
 import Users from "@/pages/Users";
+import Account from "@/pages/Account";
 import Login from "@/pages/Login";
 
 function Router() {
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/tasks" component={Tasks} />
       <Route path="/files" component={Files} />
       <Route path="/users" component={Users} />
+      <Route path="/account" component={Account} />
       <Route component={NotFound} />
     </Switch>
   );

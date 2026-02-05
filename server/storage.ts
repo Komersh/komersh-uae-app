@@ -32,6 +32,7 @@ export interface IStorage {
 
   // Sales Orders
   getSalesOrders(): Promise<SalesOrder[]>;
+  getSalesOrder(id: number): Promise<SalesOrder | undefined>;
   createSalesOrder(order: InsertSalesOrder): Promise<SalesOrder>;
   updateSalesOrder(id: number, order: Partial<InsertSalesOrder>): Promise<SalesOrder>;
   deleteSalesOrder(id: number): Promise<void>;
@@ -78,6 +79,7 @@ export interface IStorage {
   updateUserRole(id: string, role: string): Promise<void>;
   deactivateUser(id: string): Promise<void>;
   reactivateUser(id: string): Promise<void>;
+  updateUserProfile(id: string, data: { firstName: string; lastName: string | null; profileImageUrl: string | null }): Promise<void>;
   
   // Invitations
   getInvitations(): Promise<Invitation[]>;
@@ -141,6 +143,11 @@ export class DatabaseStorage implements IStorage {
   // Sales Orders
   async getSalesOrders(): Promise<SalesOrder[]> {
     return await db.select().from(salesOrders).orderBy(desc(salesOrders.createdAt));
+  }
+
+  async getSalesOrder(id: number): Promise<SalesOrder | undefined> {
+    const [order] = await db.select().from(salesOrders).where(eq(salesOrders.id, id));
+    return order;
   }
 
   async createSalesOrder(order: InsertSalesOrder): Promise<SalesOrder> {
@@ -269,6 +276,15 @@ export class DatabaseStorage implements IStorage {
 
   async reactivateUser(id: string): Promise<void> {
     await db.update(users).set({ isActive: true }).where(eq(users.id, id));
+  }
+
+  async updateUserProfile(id: string, data: { firstName: string; lastName: string | null; profileImageUrl: string | null }): Promise<void> {
+    await db.update(users).set({
+      firstName: data.firstName,
+      lastName: data.lastName,
+      profileImageUrl: data.profileImageUrl,
+      updatedAt: new Date(),
+    }).where(eq(users.id, id));
   }
 
   // Invitations
