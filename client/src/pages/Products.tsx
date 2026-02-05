@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, ShoppingCart, Package, TrendingUp, AlertTriangle, Search, ExternalLink, DollarSign, Upload, Image, Edit, X, Check } from "lucide-react";
+import { Plus, Trash2, ShoppingCart, Package, TrendingUp, AlertTriangle, Search, ExternalLink, DollarSign, Upload, Image, Edit, X, Check, Star } from "lucide-react";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -227,6 +227,7 @@ export default function Products() {
                         <TableHead className="text-foreground">SKU</TableHead>
                         <TableHead className="text-foreground">Marketplace</TableHead>
                         <TableHead className="text-foreground">Status</TableHead>
+                        <TableHead className="text-foreground">Rating</TableHead>
                         <TableHead className="text-right text-foreground">Cost</TableHead>
                         <TableHead className="text-right text-foreground">Sell Price</TableHead>
                         <TableHead className="w-[120px]"></TableHead>
@@ -235,11 +236,11 @@ export default function Products() {
                     <TableBody>
                       {ppLoading ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8">Loading...</TableCell>
+                          <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
                         </TableRow>
                       ) : filteredPotentialProducts.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                             No products yet. Add a product to start researching.
                           </TableCell>
                         </TableRow>
@@ -278,6 +279,9 @@ export default function Products() {
                               }>
                                 {item.status}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <StarRating productId={item.id} rating={item.buyRating || 0} />
                             </TableCell>
                             <TableCell className="text-right font-mono text-foreground">
                               {item.costPerUnit ? `${item.currency || 'USD'} ${parseFloat(item.costPerUnit).toFixed(2)}` : '-'}
@@ -431,7 +435,10 @@ export default function Products() {
 
 function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const createProduct = useCreatePotentialProduct();
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   const form = useForm<z.infer<typeof addProductSchema>>({
     resolver: zodResolver(addProductSchema),
@@ -449,7 +456,17 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     }
   });
 
-  const onSubmit = (data: z.infer<typeof addProductSchema>) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onSubmit = async (data: z.infer<typeof addProductSchema>) => {
     createProduct.mutate({
       name: data.name,
       supplierLink: data.supplierLink,
@@ -461,10 +478,26 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
       currency: data.currency,
       status: data.status,
     }, {
-      onSuccess: () => {
+      onSuccess: async (createdProduct: any) => {
+        if (imageFile && createdProduct?.id) {
+          const formData = new FormData();
+          formData.append('image', imageFile);
+          try {
+            await fetch(`/api/potential-products/${createdProduct.id}/image`, {
+              method: 'POST',
+              body: formData,
+              credentials: 'include',
+            });
+            queryClient.invalidateQueries({ queryKey: ['/api/potential-products'] });
+          } catch (err) {
+            console.error('Failed to upload image:', err);
+          }
+        }
         toast({ title: "Product Added", description: "Product added to research list." });
         onOpenChange(false);
         form.reset();
+        setImageFile(null);
+        setImagePreview(null);
       }
     });
   };
@@ -547,6 +580,36 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
             <Textarea className="bg-background border-border resize-none" {...form.register("notes")} data-testid="input-product-notes" />
           </div>
           
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Product Image</label>
+            <div className="flex items-center gap-4">
+              {imagePreview ? (
+                <div className="relative">
+                  <img src={imagePreview} alt="Preview" className="w-20 h-20 rounded-md object-cover border border-border" />
+                  <button
+                    type="button"
+                    onClick={() => { setImageFile(null); setImagePreview(null); }}
+                    className="absolute -top-2 -right-2 p-1 rounded-full bg-destructive text-destructive-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-20 h-20 border border-dashed border-border rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground mt-1">Upload</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                    data-testid="input-product-image"
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+          
           <div className="flex justify-end pt-4">
             <Button type="submit" disabled={createProduct.isPending} className="bg-primary hover:bg-primary/90" data-testid="button-submit-product">
               {createProduct.isPending ? "Adding..." : "Add Product"}
@@ -555,6 +618,44 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function StarRating({ productId, rating }: { productId: number; rating: number }) {
+  const queryClient = useQueryClient();
+  const updateProduct = useUpdatePotentialProduct();
+  const [hoveredStar, setHoveredStar] = useState<number | null>(null);
+
+  const handleClick = (star: number) => {
+    updateProduct.mutate({ id: productId, buyRating: star }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/potential-products'] });
+      }
+    });
+  };
+
+  return (
+    <div className="flex gap-0.5" data-testid={`star-rating-${productId}`}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => handleClick(star)}
+          onMouseEnter={() => setHoveredStar(star)}
+          onMouseLeave={() => setHoveredStar(null)}
+          className="p-0.5 transition-colors"
+          data-testid={`star-${productId}-${star}`}
+        >
+          <Star
+            className={`h-4 w-4 ${
+              (hoveredStar !== null ? star <= hoveredStar : star <= rating)
+                ? 'fill-yellow-400 text-yellow-400'
+                : 'text-muted-foreground'
+            }`}
+          />
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -1007,6 +1108,8 @@ function EditInventoryDialog({ item, onClose }: { item: any; onClose: () => void
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [updating, setUpdating] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   const form = useForm<z.infer<typeof editInventorySchema>>({
     resolver: zodResolver(editInventorySchema),
@@ -1027,8 +1130,20 @@ function EditInventoryDialog({ item, onClose }: { item: any; onClose: () => void
         notes: item.notes || "",
         status: item.status || "ordered",
       });
+      setImagePreview(item.imageUrl || null);
+      setImageFile(null);
     }
   }, [item?.id]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
 
   if (!item) return null;
 
@@ -1042,6 +1157,17 @@ function EditInventoryDialog({ item, onClose }: { item: any; onClose: () => void
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Update failed');
+      
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        await fetch(`/api/inventory/${item.id}/image`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        });
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
       toast({ title: "Inventory Updated", description: "Inventory details saved." });
       onClose();
@@ -1088,6 +1214,36 @@ function EditInventoryDialog({ item, onClose }: { item: any; onClose: () => void
           <div className="space-y-2">
             <label className="text-sm font-medium">Notes</label>
             <Textarea className="bg-background border-border" {...form.register("notes")} data-testid="input-inventory-notes" />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Product Image</label>
+            <div className="flex items-center gap-4">
+              {imagePreview ? (
+                <div className="relative">
+                  <img src={imagePreview} alt="Preview" className="w-20 h-20 rounded-md object-cover border border-border" />
+                  <button
+                    type="button"
+                    onClick={() => { setImageFile(null); setImagePreview(null); }}
+                    className="absolute -top-2 -right-2 p-1 rounded-full bg-destructive text-destructive-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-20 h-20 border border-dashed border-border rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground mt-1">Upload</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                    data-testid="input-inventory-image"
+                  />
+                </label>
+              )}
+            </div>
           </div>
           
           <div className="flex justify-end gap-2 pt-4">

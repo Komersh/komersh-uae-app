@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, Search, Filter, TrendingUp, TrendingDown, Building2, ArrowUpRight, ArrowDownRight, Edit, Download, Calendar } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, subMonths, isWithinInterval } from "date-fns";
 import { useForm } from "react-hook-form";
@@ -62,6 +61,7 @@ export default function Financials() {
   const [filterPaidBy, setFilterPaidBy] = useState("all");
   const [filterMonth, setFilterMonth] = useState("all");
   const [currency, setCurrency] = useState<Currency>("USD");
+  const [activeTab, setActiveTab] = useState<"expenses" | "sales" | "charts" | "accounts">("expenses");
   
   const monthOptions = getMonthOptions();
 
@@ -273,23 +273,57 @@ export default function Financials() {
           </Card>
         </div>
 
-        <Tabs defaultValue="expenses" className="w-full">
-          <TabsList className="bg-muted border border-border p-1 mb-6">
-            <TabsTrigger value="expenses">
-              Expenses
-            </TabsTrigger>
-            <TabsTrigger value="sales">
-              Sales Orders
-            </TabsTrigger>
-            <TabsTrigger value="charts">
-              Charts
-            </TabsTrigger>
-            <TabsTrigger value="accounts">
-              Bank Accounts
-            </TabsTrigger>
-          </TabsList>
+        <div className="flex gap-2 mb-6 flex-wrap">
+          <button
+            onClick={() => setActiveTab("expenses")}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              activeTab === "expenses"
+                ? "bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-lg"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+            data-testid="tab-expenses"
+          >
+            <TrendingDown className="h-4 w-4 inline mr-2" />
+            Expenses
+          </button>
+          <button
+            onClick={() => setActiveTab("sales")}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              activeTab === "sales"
+                ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+            data-testid="tab-sales"
+          >
+            <TrendingUp className="h-4 w-4 inline mr-2" />
+            Sales Orders
+          </button>
+          <button
+            onClick={() => setActiveTab("charts")}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              activeTab === "charts"
+                ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-lg"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+            data-testid="tab-charts"
+          >
+            Charts
+          </button>
+          <button
+            onClick={() => setActiveTab("accounts")}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              activeTab === "accounts"
+                ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+            data-testid="tab-accounts"
+          >
+            <Building2 className="h-4 w-4 inline mr-2" />
+            Bank Accounts
+          </button>
+        </div>
 
-          <TabsContent value="expenses" className="mt-0">
+        {activeTab === "expenses" && (
             <Card className="glass-card bg-card/40 border-none">
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
                 <CardTitle>Expense Ledger</CardTitle>
@@ -443,9 +477,9 @@ export default function Financials() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+        )}
 
-          <TabsContent value="sales" className="mt-0">
+        {activeTab === "sales" && (
             <Card className="glass-card bg-card/40 border-none">
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
                 <CardTitle>Sales Orders</CardTitle>
@@ -542,9 +576,9 @@ export default function Financials() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+        )}
 
-          <TabsContent value="charts" className="mt-0">
+        {activeTab === "charts" && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <Card className="glass-card border-none bg-card/40">
                 <CardHeader>
@@ -604,16 +638,16 @@ export default function Financials() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+        )}
 
-          <TabsContent value="accounts" className="mt-0">
+        {activeTab === "accounts" && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {bankAccounts?.map((account: any) => (
                 <BankAccountCard key={account.id} account={account} />
               ))}
             </div>
-          </TabsContent>
-        </Tabs>
+        )}
+
         <EditExpenseDialog item={editExpense} onClose={() => setEditExpense(null)} bankAccounts={bankAccounts || []} />
       </div>
     </Layout>

@@ -4,11 +4,10 @@ import { useAttachments, useUploadAttachment, useDeleteAttachment } from "@/hook
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Upload, Trash2, FileText, Image, File, FolderOpen, Download, Plus, FolderPlus, FileSpreadsheet, FileVideo, FileAudio } from "lucide-react";
+import { Upload, Trash2, FileText, Image, File, FolderOpen, Download, FolderPlus, FileSpreadsheet, FileVideo, FileAudio, ChevronRight, ArrowLeft, Folder } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,12 +18,10 @@ export default function Files() {
   const uploadAttachment = useUploadAttachment();
   const deleteAttachment = useDeleteAttachment();
   const { toast } = useToast();
-  const [folder, setFolder] = useState("general");
-  const [filterFolder, setFilterFolder] = useState("all");
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
 
-  // Extract unique folders from attachments and merge with defaults
   const attachmentFolders = attachments?.map((a: any) => a.folder).filter(Boolean) || [];
   const uniqueAttachmentFolders = [...new Set(attachmentFolders)] as string[];
   const customFolders = uniqueAttachmentFolders.filter(f => !DEFAULT_FOLDERS.includes(f));
@@ -34,8 +31,9 @@ export default function Files() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    const uploadFolder = currentFolder || "general";
     for (const file of Array.from(files)) {
-      uploadAttachment.mutate({ file, folder }, {
+      uploadAttachment.mutate({ file, folder: uploadFolder }, {
         onSuccess: () => {
           toast({ title: "File Uploaded", description: `${file.name} uploaded successfully.` });
         },
@@ -54,16 +52,19 @@ export default function Files() {
       toast({ title: "Folder exists", description: "A folder with that name already exists.", variant: "destructive" });
       return;
     }
-    // Just set the upload folder - the folder will appear once a file is uploaded to it
-    setFolder(sanitized);
+    setCurrentFolder(sanitized);
     setNewFolderName("");
     setIsCreateFolderOpen(false);
-    toast({ title: "Ready to Upload", description: `Upload files to create folder: ${sanitized}` });
+    toast({ title: "Folder Created", description: `Now viewing folder: ${sanitized}. Upload files to save it.` });
   };
 
-  const filteredAttachments = filterFolder === "all" 
-    ? attachments 
-    : attachments?.filter((a: any) => a.folder === filterFolder);
+  const currentFolderFiles = currentFolder 
+    ? attachments?.filter((a: any) => a.folder === currentFolder)
+    : [];
+
+  const getFolderFileCount = (folder: string) => {
+    return attachments?.filter((a: any) => a.folder === folder).length || 0;
+  };
 
   const getFileIcon = (mimeType: string) => {
     if (mimeType?.startsWith("image/")) return <Image className="h-5 w-5 text-blue-600 dark:text-blue-400" />;
@@ -128,32 +129,6 @@ export default function Files() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Select value={folder} onValueChange={setFolder}>
-              <SelectTrigger className="w-40 bg-background border-border" data-testid="select-upload-folder">
-                <SelectValue placeholder="Folder" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                {allFolders.map(f => (
-                  <SelectItem key={f} value={f} className="capitalize">{f}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <label htmlFor="file-upload">
-              <Button asChild className="shadow-lg shadow-primary/25 cursor-pointer">
-                <span>
-                  <Upload className="mr-2 h-4 w-4" /> Upload Files
-                </span>
-              </Button>
-              <input 
-                id="file-upload" 
-                type="file" 
-                multiple 
-                className="hidden" 
-                onChange={handleFileUpload}
-                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.mp4,.mp3,.txt"
-                data-testid="input-file-upload"
-              />
-            </label>
           </div>
         </div>
 
@@ -193,115 +168,141 @@ export default function Files() {
           </Card>
         </div>
 
-        <Card className="bg-card/40">
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <CardTitle className="flex items-center gap-2">
-              <FolderOpen className="h-5 w-5" />
-              Files
-            </CardTitle>
-            <Select value={filterFolder} onValueChange={setFilterFolder}>
-              <SelectTrigger className="w-40 bg-background border-border" data-testid="select-filter-folder">
-                <SelectValue placeholder="Filter by folder" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                <SelectItem value="all">All Folders</SelectItem>
-                {allFolders.map(f => (
-                  <SelectItem key={f} value={f} className="capitalize">{f}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border border-border overflow-hidden">
-              <Table>
-                <TableHeader className="bg-muted/50">
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-foreground">File</TableHead>
-                    <TableHead className="text-foreground">Folder</TableHead>
-                    <TableHead className="text-foreground">Size</TableHead>
-                    <TableHead className="text-foreground">Uploaded</TableHead>
-                    <TableHead className="w-[100px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">Loading files...</TableCell>
-                    </TableRow>
-                  ) : !filteredAttachments || filteredAttachments.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        No files uploaded yet. Click "Upload Files" to get started.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredAttachments.map((file: any) => (
-                      <TableRow key={file.id} className="border-border hover:bg-muted/50 transition-colors group">
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            {getFileIcon(file.mimeType)}
-                            <span className="text-foreground font-medium">{file.originalName}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset bg-muted text-muted-foreground ring-border capitalize">
-                            {file.folder}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatFileSize(file.size || 0)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {format(new Date(file.createdAt), 'MMM d, yyyy')}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        {!currentFolder ? (
+          <Card className="bg-card/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Folder className="h-5 w-5" />
+                Folders
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {allFolders.map((folder) => {
+                  const fileCount = getFolderFileCount(folder);
+                  return (
+                    <button
+                      key={folder}
+                      onClick={() => setCurrentFolder(folder)}
+                      className="flex flex-col items-center p-6 rounded-lg border border-border bg-background hover:bg-muted/50 transition-colors cursor-pointer group"
+                      data-testid={`folder-${folder}`}
+                    >
+                      <Folder className="h-12 w-12 text-primary mb-3 group-hover:scale-110 transition-transform" />
+                      <span className="text-foreground font-medium capitalize">{folder}</span>
+                      <span className="text-xs text-muted-foreground mt-1">{fileCount} file{fileCount !== 1 ? 's' : ''}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="bg-card/40">
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => setCurrentFolder(null)}
+                  data-testid="button-back-to-folders"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <CardTitle className="flex items-center gap-2 capitalize">
+                  <FolderOpen className="h-5 w-5 text-primary" />
+                  {currentFolder}
+                  <Badge variant="secondary" className="ml-2">{currentFolderFiles?.length || 0} files</Badge>
+                </CardTitle>
+              </div>
+              <label htmlFor="file-upload">
+                <Button asChild className="shadow-lg shadow-primary/25 cursor-pointer">
+                  <span>
+                    <Upload className="mr-2 h-4 w-4" /> Upload Files
+                  </span>
+                </Button>
+                <input 
+                  id="file-upload" 
+                  type="file" 
+                  multiple 
+                  className="hidden" 
+                  onChange={handleFileUpload}
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.mp4,.mp3,.txt"
+                  data-testid="input-file-upload"
+                />
+              </label>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading files...</div>
+              ) : !currentFolderFiles || currentFolderFiles.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-lg">
+                  <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>This folder is empty.</p>
+                  <p className="text-sm mt-1">Click "Upload Files" to add files to this folder.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {currentFolderFiles.map((file: any) => (
+                    <div 
+                      key={file.id}
+                      className="flex items-center gap-3 p-4 rounded-lg border border-border bg-background hover:bg-muted/50 transition-colors group"
+                    >
+                      <div className="flex-shrink-0">
+                        {getFileIcon(file.mimeType)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground font-medium truncate">{file.originalName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatFileSize(file.size || 0)} - {format(new Date(file.createdAt), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => window.open(file.url, '_blank')}
+                          data-testid={`button-download-${file.id}`}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
                             <Button 
                               variant="ghost" 
-                              size="icon" 
-                              onClick={() => window.open(file.url, '_blank')}
-                              data-testid={`button-download-${file.id}`}
+                              size="icon"
+                              className="h-8 w-8"
+                              data-testid={`button-delete-${file.id}`}
                             >
-                              <Download className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  data-testid={`button-delete-${file.id}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="bg-card border-border">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete File</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete "{file.originalName}"? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => deleteAttachment.mutate(file.id)}
-                                    className="bg-destructive text-destructive-foreground"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="bg-card border-border">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete File</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{file.originalName}"? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => deleteAttachment.mutate(file.id)}
+                                className="bg-destructive text-destructive-foreground"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );
