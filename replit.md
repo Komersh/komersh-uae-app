@@ -119,11 +119,21 @@ The application is fully functional with:
 ## Running the App
 The app runs on port 5000 with `npm run dev` which starts both the Express backend and Vite frontend.
 
+## Currency Conversion System
+- Exchange rates (base USD): USD=1, AED=3.67, EUR=0.92
+- Backend: All stats calculate totals in USD base, converting from each item's source currency
+- Frontend: `convertCurrency(value, toCurrency, fromCurrency)` converts any amount to display currency
+- Chart data (monthly revenue/expenses, pie charts) converts each item before aggregation
+- Bank accounts display in native currencies; total balance converts to selected currency
+- Product Research table shows original currency with proper symbols
+- Inventory and Financials show converted values in selected display currency
+
 ## Recent Changes (Feb 5, 2026)
 - Enhanced frontend pages with new hooks
 - Added comprehensive dashboard with charts
 - Implemented product research → inventory → sales flow
 - Added bank account management with balance adjustment
+- **Enhanced currency conversion** - All charts and stats now properly convert currencies from source to display currency
 - Added file upload section with custom folder creation
 - Multi-currency display across all pages
 - Added expense filtering by category and paidBy
