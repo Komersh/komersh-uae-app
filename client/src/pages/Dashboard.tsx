@@ -80,16 +80,16 @@ export default function Dashboard() {
       <div className="flex flex-col gap-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Dashboard Overview</h1>
+            <h1 className="text-3xl font-bold text-foreground">Dashboard Overview</h1>
             <p className="text-muted-foreground mt-2">Welcome back to Komersh command center.</p>
           </div>
           <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-            <SelectTrigger className="w-32 bg-black/20 border-white/10" data-testid="select-currency">
+            <SelectTrigger className="w-32 bg-card border-border text-foreground" data-testid="select-currency">
               <SelectValue placeholder="Currency" />
             </SelectTrigger>
-            <SelectContent className="bg-card border-white/10 text-white">
+            <SelectContent className="bg-card border-border">
               {CURRENCIES.map(c => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
+                <SelectItem key={c} value={c} className="text-foreground">{c}</SelectItem>
               ))}
             </SelectContent>
           </Select>

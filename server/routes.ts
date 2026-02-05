@@ -252,6 +252,16 @@ export async function registerRoutes(
     }
   });
 
+  app.delete(api.inventory.delete.path, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const item = await storage.getInventoryItem(id);
+    if (!item) {
+      return res.status(404).json({ message: "Inventory item not found" });
+    }
+    await storage.deleteInventoryItem(id);
+    res.status(204).send();
+  });
+
   // === SALES ORDERS ===
   app.get(api.salesOrders.list.path, async (req, res) => {
     const orders = await storage.getSalesOrders();
@@ -340,6 +350,15 @@ export async function registerRoutes(
         balance: newBalance.toFixed(2),
       });
 
+      // Create bank transaction record
+      await storage.createBankTransaction({
+        bankAccountId: id,
+        type: input.type === 'add' ? 'deposit' : 'withdrawal',
+        amount: input.amount,
+        currency: account.currency,
+        description: input.description || (input.type === 'add' ? 'Deposit' : 'Withdrawal'),
+      });
+
       await storage.createActivityLog({
         action: input.type === 'add' ? 'deposit' : 'withdrawal',
         entityType: 'bank_account',
@@ -359,6 +378,19 @@ export async function registerRoutes(
     }
   });
 
+  // === BANK TRANSACTIONS ===
+  app.get("/api/bank-transactions", async (req, res) => {
+    const accountId = req.query.accountId ? parseInt(req.query.accountId as string) : undefined;
+    const transactions = await storage.getBankTransactions(accountId);
+    res.json(transactions);
+  });
+
+  app.get("/api/bank-transactions/:accountId", async (req, res) => {
+    const accountId = parseInt(req.params.accountId);
+    const transactions = await storage.getBankTransactions(accountId);
+    res.json(transactions);
+  });
+
   // === EXPENSES ===
   app.get(api.expenses.list.path, async (req, res) => {
     const expensesList = await storage.getExpenses();
@@ -370,13 +402,24 @@ export async function registerRoutes(
       const input = api.expenses.create.input.parse(req.body);
       const expense = await storage.createExpense(input);
       
-      // If linked to bank account, subtract from balance
+      // If linked to bank account, subtract from balance and create transaction
       if (input.bankAccountId) {
         const account = await storage.getBankAccount(input.bankAccountId);
         if (account) {
           const newBalance = parseFloat(account.balance) - parseFloat(String(input.amount));
           await storage.updateBankAccount(input.bankAccountId, {
             balance: newBalance.toFixed(2),
+          });
+          
+          // Create bank transaction record
+          await storage.createBankTransaction({
+            bankAccountId: input.bankAccountId,
+            type: 'expense',
+            amount: String(input.amount),
+            currency: input.currency || account.currency,
+            description: input.description || input.category,
+            relatedEntityType: 'expense',
+            relatedEntityId: expense.id,
           });
         }
       }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/ui/Layout";
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from "@/hooks/use-tasks";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -9,13 +10,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Calendar, Clock, Tag, Flag, X, Edit, Check } from "lucide-react";
+import { Plus, Trash2, Calendar, Clock, Tag, Flag, X, Edit, Check, User } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertTaskSchema } from "@shared/schema";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -24,6 +26,7 @@ const formSchema = z.object({
   priority: z.string().default("medium"),
   labels: z.string().optional(),
   dueDate: z.string().optional(),
+  assigneeId: z.string().optional(),
 });
 
 const COLUMNS = [
@@ -43,6 +46,9 @@ const LABELS = ["Product", "Marketing", "Ops", "Finance", "Tech"];
 
 export default function Tasks() {
   const { data: tasks, isLoading } = useTasks();
+  const { data: users } = useQuery({
+    queryKey: ['/api/users'],
+  });
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -91,7 +97,7 @@ export default function Tasks() {
             <h1 className="text-3xl font-bold text-foreground">Mission Control</h1>
             <p className="text-muted-foreground mt-2">Manage daily operations and strategic goals.</p>
           </div>
-          <AddTaskDialog open={isAddOpen} onOpenChange={setIsAddOpen} />
+          <AddTaskDialog open={isAddOpen} onOpenChange={setIsAddOpen} users={users || []} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-full overflow-hidden pb-4">
@@ -124,6 +130,7 @@ export default function Tasks() {
           deleteTask.mutate(id);
           setSelectedTask(null);
         }}
+        users={users || []}
       />
     </Layout>
   );
@@ -248,7 +255,7 @@ function TaskCard({ task, isDragging, onDragStart, onDragEnd, onDelete, onClick 
   );
 }
 
-function TaskDetailDialog({ task, onClose, onDelete }: { task: any; onClose: () => void; onDelete: (id: number) => void }) {
+function TaskDetailDialog({ task, onClose, onDelete, users }: { task: any; onClose: () => void; onDelete: (id: number) => void; users: any[] }) {
   const { toast } = useToast();
   const updateTask = useUpdateTask();
   const [isEditing, setIsEditing] = useState(false);
@@ -257,8 +264,11 @@ function TaskDetailDialog({ task, onClose, onDelete }: { task: any; onClose: () 
   const [editedStatus, setEditedStatus] = useState("");
   const [editedPriority, setEditedPriority] = useState("");
   const [editedLabels, setEditedLabels] = useState("");
+  const [editedAssigneeId, setEditedAssigneeId] = useState("");
 
   if (!task) return null;
+
+  const assignee = users.find((u: any) => u.id === task.assigneeId);
 
   const handleEdit = () => {
     setEditedTitle(task.title);
@@ -266,6 +276,7 @@ function TaskDetailDialog({ task, onClose, onDelete }: { task: any; onClose: () 
     setEditedStatus(task.status);
     setEditedPriority(task.priority || "medium");
     setEditedLabels(task.labels || "");
+    setEditedAssigneeId(task.assigneeId || "");
     setIsEditing(true);
   };
 
@@ -277,6 +288,7 @@ function TaskDetailDialog({ task, onClose, onDelete }: { task: any; onClose: () 
       status: editedStatus,
       priority: editedPriority,
       labels: editedLabels,
+      assigneeId: editedAssigneeId || null,
     }, {
       onSuccess: () => {
         toast({ title: "Task Updated" });
@@ -360,22 +372,54 @@ function TaskDetailDialog({ task, onClose, onDelete }: { task: any; onClose: () 
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Label</label>
-            {isEditing ? (
-              <Select value={editedLabels} onValueChange={setEditedLabels}>
-                <SelectTrigger className="bg-background border-border" data-testid="select-edit-task-label">
-                  <SelectValue placeholder="Select label" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {LABELS.map(l => (
-                    <SelectItem key={l} value={l}>{l}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              task.labels ? <Badge variant="outline"><Tag className="h-3 w-3 mr-1" />{task.labels}</Badge> : <span className="text-sm text-muted-foreground">None</span>
-            )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Label</label>
+              {isEditing ? (
+                <Select value={editedLabels} onValueChange={setEditedLabels}>
+                  <SelectTrigger className="bg-background border-border" data-testid="select-edit-task-label">
+                    <SelectValue placeholder="Select label" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {LABELS.map(l => (
+                      <SelectItem key={l} value={l}>{l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                task.labels ? <Badge variant="outline"><Tag className="h-3 w-3 mr-1" />{task.labels}</Badge> : <span className="text-sm text-muted-foreground">None</span>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Assigned To</label>
+              {isEditing ? (
+                <Select value={editedAssigneeId} onValueChange={setEditedAssigneeId}>
+                  <SelectTrigger className="bg-background border-border" data-testid="select-edit-task-assignee">
+                    <SelectValue placeholder="Select user" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {users.map((u: any) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.firstName} {u.lastName || ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                assignee ? (
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={assignee.profileImageUrl} />
+                      <AvatarFallback className="text-xs">
+                        {assignee.firstName?.[0]}{assignee.lastName?.[0] || ''}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm">{assignee.firstName} {assignee.lastName || ''}</span>
+                  </div>
+                ) : <span className="text-sm text-muted-foreground">Unassigned</span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
@@ -418,7 +462,7 @@ function TaskDetailDialog({ task, onClose, onDelete }: { task: any; onClose: () 
   );
 }
 
-function AddTaskDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
+function AddTaskDialog({ open, onOpenChange, users }: { open: boolean, onOpenChange: (open: boolean) => void, users: any[] }) {
   const { toast } = useToast();
   const createTask = useCreateTask();
   
@@ -431,6 +475,7 @@ function AddTaskDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (o
       priority: "medium",
       labels: "",
       dueDate: "",
+      assigneeId: "",
     }
   });
 
@@ -442,6 +487,7 @@ function AddTaskDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (o
       priority: data.priority,
       labels: data.labels || null,
       dueDate: data.dueDate || null,
+      assigneeId: data.assigneeId || null,
     };
     createTask.mutate(taskData as any, {
       onSuccess: () => {
@@ -507,9 +553,27 @@ function AddTaskDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (o
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Due Date</label>
-            <Input type="date" className="bg-background border-border" {...form.register("dueDate")} data-testid="input-task-due-date" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Due Date</label>
+              <Input type="date" className="bg-background border-border" {...form.register("dueDate")} data-testid="input-task-due-date" />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Assign To</label>
+              <Select onValueChange={(val) => form.setValue("assigneeId", val)}>
+                <SelectTrigger className="bg-background border-border" data-testid="select-task-assignee">
+                  <SelectValue placeholder="Select user" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {users.map((u: any) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.firstName} {u.lastName || ''} 
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex justify-end pt-4">

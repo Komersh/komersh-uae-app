@@ -4,6 +4,7 @@ import {
   insertInventorySchema, inventory,
   insertSalesOrderSchema, salesOrders,
   insertBankAccountSchema, bankAccounts,
+  insertBankTransactionSchema, bankTransactions,
   insertExpenseSchema, expenses,
   insertTaskSchema, tasks,
   insertAttachmentSchema, attachments,
@@ -12,6 +13,7 @@ import {
   type InsertInventory,
   type InsertSalesOrder,
   type InsertBankAccount,
+  type InsertBankTransaction,
   type InsertExpense,
   type InsertTask,
   type InsertAttachment,
@@ -23,6 +25,7 @@ export type {
   InsertInventory,
   InsertSalesOrder,
   InsertBankAccount,
+  InsertBankTransaction,
   InsertExpense,
   InsertTask,
   InsertAttachment,
@@ -128,6 +131,14 @@ export const api = {
       responses: {
         201: z.custom<typeof salesOrders.$inferSelect>(),
         400: errorSchemas.validation,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/inventory/:id',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
       },
     },
   },

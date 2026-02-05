@@ -101,6 +101,24 @@ export const insertBankAccountSchema = createInsertSchema(bankAccounts).omit({ i
 export type BankAccount = typeof bankAccounts.$inferSelect;
 export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
 
+// === BANK TRANSACTIONS ===
+export const bankTransactions = pgTable("bank_transactions", {
+  id: serial("id").primaryKey(),
+  bankAccountId: integer("bank_account_id").notNull(),
+  type: text("type").notNull(), // deposit, withdrawal, expense, sale_payout
+  amount: numeric("amount").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  description: text("description"),
+  relatedEntityType: text("related_entity_type"), // expense, sales_order
+  relatedEntityId: integer("related_entity_id"),
+  userId: varchar("user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBankTransactionSchema = createInsertSchema(bankTransactions).omit({ id: true, createdAt: true });
+export type BankTransaction = typeof bankTransactions.$inferSelect;
+export type InsertBankTransaction = z.infer<typeof insertBankTransactionSchema>;
+
 // === EXPENSES (Enhanced) ===
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),

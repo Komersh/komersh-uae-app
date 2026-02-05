@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/ui/Layout";
 import { usePotentialProducts, useCreatePotentialProduct, useUpdatePotentialProduct, useDeletePotentialProduct, useBuyPotentialProduct } from "@/hooks/use-potential-products";
-import { useInventory, useSellInventory } from "@/hooks/use-inventory";
+import { useInventory, useSellInventory, useDeleteInventory } from "@/hooks/use-inventory";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,7 +51,7 @@ const sellProductSchema = z.object({
   notes: z.string().optional(),
 });
 
-const SALES_CHANNELS = ["Amazon UAE", "Noon", "Own Website", "Direct Sale"];
+const SALES_CHANNELS = ["Amazon UAE", "Amazon Germany", "Noon", "Own Website", "Direct Sale"];
 
 export default function Products() {
   const { data: potentialProducts, isLoading: ppLoading } = usePotentialProducts();
@@ -290,7 +290,7 @@ export default function Products() {
                               {item.targetSellingPrice ? `${item.currency || 'USD'} ${parseFloat(item.targetSellingPrice).toFixed(2)}` : '-'}
                             </TableCell>
                             <TableCell>
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex gap-1">
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
@@ -392,7 +392,7 @@ export default function Products() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex gap-1">
                                   <Button 
                                     variant="ghost"
                                     size="icon"
@@ -411,6 +411,7 @@ export default function Products() {
                                   >
                                     <DollarSign className="h-4 w-4 mr-1" /> Sell
                                   </Button>
+                                  <DeleteInventoryButton id={item.id} name={item.name} />
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -684,6 +685,41 @@ function DeleteProductButton({ id, name }: { id: number; name: string }) {
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction 
             onClick={() => deleteProduct.mutate(id)}
+            className="bg-destructive text-destructive-foreground"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function DeleteInventoryButton({ id, name }: { id: number; name: string }) {
+  const deleteInventory = useDeleteInventory();
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-8 w-8 text-muted-foreground hover:text-red-400"
+          data-testid={`button-delete-inventory-${id}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent className="bg-card border-border">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Inventory Item</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete "{name}" from inventory? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={() => deleteInventory.mutate(id)}
             className="bg-destructive text-destructive-foreground"
           >
             Delete

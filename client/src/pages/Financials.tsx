@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Search, Filter, TrendingUp, TrendingDown, Building2, ArrowUpRight, ArrowDownRight, Edit, Download, Calendar } from "lucide-react";
+import { Plus, Trash2, Search, Filter, TrendingUp, TrendingDown, Building2, ArrowUpRight, ArrowDownRight, ArrowUpDown, Edit, Download, Calendar } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, subMonths, isWithinInterval } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -60,6 +60,7 @@ export default function Financials() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterPaidBy, setFilterPaidBy] = useState("all");
   const [filterMonth, setFilterMonth] = useState("all");
+  const [selectedMonth, setSelectedMonth] = useState("all");
   const [currency, setCurrency] = useState<Currency>("USD");
   const [activeTab, setActiveTab] = useState<"expenses" | "sales" | "charts" | "accounts">("expenses");
   
@@ -173,9 +174,19 @@ export default function Financials() {
   const totalProfit = salesOrders?.reduce((sum: number, o: any) => 
     sum + convertCurrency(o.profit, o.currency || "USD", currency), 0) || 0;
 
+  // Filter expenses for charts based on selectedMonth
+  const chartFilteredExpenses = expenses?.filter((e: any) => {
+    if (selectedMonth === "all") return true;
+    try {
+      return format(new Date(e.date), 'yyyy-MM') === selectedMonth;
+    } catch {
+      return true;
+    }
+  }) || [];
+
   // Category breakdown for chart
   const categoryData: Record<string, number> = {};
-  filteredExpenses.forEach((e: any) => {
+  chartFilteredExpenses.forEach((e: any) => {
     const cat = e.category || "Other";
     categoryData[cat] = (categoryData[cat] || 0) + convertCurrency(e.amount, e.currency || "USD", currency);
   });
@@ -191,7 +202,7 @@ export default function Financials() {
 
   // Monthly expense data
   const monthlyExpenseData: Record<string, number> = {};
-  filteredExpenses.forEach((e: any) => {
+  chartFilteredExpenses.forEach((e: any) => {
     const month = format(new Date(e.date), 'MMM yyyy');
     monthlyExpenseData[month] = (monthlyExpenseData[month] || 0) + convertCurrency(e.amount, e.currency || "USD", currency);
   });
@@ -579,6 +590,25 @@ export default function Financials() {
         )}
 
         {activeTab === "charts" && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filter by month:</span>
+              </div>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[200px] bg-background border-border" data-testid="select-chart-month">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="all">All Time</SelectItem>
+                  {getMonthOptions().map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <Card className="glass-card border-none bg-card/40">
                 <CardHeader>
@@ -638,14 +668,19 @@ export default function Financials() {
                 </CardContent>
               </Card>
             </div>
+          </div>
         )}
 
         {activeTab === "accounts" && (
+          <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {bankAccounts?.map((account: any) => (
                 <BankAccountCard key={account.id} account={account} />
               ))}
             </div>
+            
+            <BankTransactionsTable />
+          </div>
         )}
 
         <EditExpenseDialog item={editExpense} onClose={() => setEditExpense(null)} bankAccounts={bankAccounts || []} />
@@ -700,6 +735,107 @@ function BankAccountCard({ account }: { account: any }) {
             <ArrowDownRight className="h-4 w-4" />
           </Button>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BankTransactionsTable() {
+  const { data: transactions, isLoading } = useQuery<any[]>({
+    queryKey: ['/api/bank-transactions'],
+  });
+  const { data: bankAccounts } = useBankAccounts();
+  const { data: users } = useQuery<any[]>({
+    queryKey: ['/api/users'],
+  });
+
+  const getAccountName = (accountId: number) => {
+    const account = bankAccounts?.find((a: any) => a.id === accountId);
+    return account?.name || 'Unknown';
+  };
+
+  const getUserName = (userId: string) => {
+    const user = users?.find((u: any) => u.id === userId);
+    return user ? `${user.firstName} ${user.lastName || ''}` : 'System';
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'deposit': return 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30';
+      case 'withdrawal': return 'text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/30';
+      case 'expense': return 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30';
+      case 'sale_payout': return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
+      default: return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-900/30';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="glass-card border-none bg-card/40">
+        <CardContent className="p-6">
+          <div className="text-center text-muted-foreground py-8">Loading transactions...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="glass-card border-none bg-card/40">
+      <CardContent className="p-6">
+        <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+          <ArrowUpDown className="h-5 w-5 text-primary" />
+          Transaction History
+        </h3>
+        
+        {transactions?.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8" data-testid="text-no-transactions">No transactions yet</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Account</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>User</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transactions?.slice(0, 20).map((tx: any) => (
+                  <TableRow key={tx.id} data-testid={`row-transaction-${tx.id}`}>
+                    <TableCell data-testid={`text-tx-date-${tx.id}`}>
+                      {format(new Date(tx.createdAt), 'MMM d, yyyy HH:mm')}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={getTypeColor(tx.type)} data-testid={`badge-tx-type-${tx.id}`}>
+                        {tx.type.replace('_', ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell data-testid={`text-tx-account-${tx.id}`}>
+                      {getAccountName(tx.bankAccountId)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground" data-testid={`text-tx-desc-${tx.id}`}>
+                      {tx.description || '-'}
+                    </TableCell>
+                    <TableCell className={`text-right font-medium ${
+                      tx.type === 'deposit' || tx.type === 'sale_payout' 
+                        ? 'text-emerald-600 dark:text-emerald-400' 
+                        : 'text-rose-600 dark:text-rose-400'
+                    }`} data-testid={`text-tx-amount-${tx.id}`}>
+                      {tx.type === 'deposit' || tx.type === 'sale_payout' ? '+' : '-'}
+                      {tx.currency} {parseFloat(tx.amount).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground" data-testid={`text-tx-user-${tx.id}`}>
+                      {getUserName(tx.userId)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -817,14 +953,23 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Paid By</label>
-              <Select onValueChange={(val) => form.setValue("paidBy", val)}>
+              <label className="text-sm font-medium">Paid From Account</label>
+              <Select onValueChange={(val) => {
+                const accountId = parseInt(val);
+                form.setValue("bankAccountId", accountId);
+                const account = bankAccounts?.find((a: any) => a.id === accountId);
+                if (account) {
+                  form.setValue("paidBy", account.name);
+                }
+              }}>
                 <SelectTrigger className="bg-background border-border" data-testid="select-expense-paidby">
-                  <SelectValue placeholder="Select" />
+                  <SelectValue placeholder="Select account" />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  {PAID_BY_OPTIONS.map(opt => (
-                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  {bankAccounts?.map((account: any) => (
+                    <SelectItem key={account.id} value={account.id.toString()}>
+                      {account.name} ({account.currency} {parseFloat(account.balance).toLocaleString()})
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -837,9 +982,10 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  <SelectItem value="Bank">Bank</SelectItem>
+                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
                   <SelectItem value="Cash">Cash</SelectItem>
                   <SelectItem value="Card">Card</SelectItem>
+                  <SelectItem value="Wire">Wire</SelectItem>
                 </SelectContent>
               </Select>
             </div>

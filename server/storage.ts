@@ -1,9 +1,10 @@
 import { 
-  potentialProducts, inventory, salesOrders, bankAccounts, expenses, tasks, attachments, activityLog,
+  potentialProducts, inventory, salesOrders, bankAccounts, bankTransactions, expenses, tasks, attachments, activityLog,
   type PotentialProduct, type InsertPotentialProduct,
   type Inventory, type InsertInventory,
   type SalesOrder, type InsertSalesOrder,
   type BankAccount, type InsertBankAccount,
+  type BankTransaction, type InsertBankTransaction,
   type Expense, type InsertExpense,
   type Task, type InsertTask,
   type Attachment, type InsertAttachment,
@@ -26,6 +27,7 @@ export interface IStorage {
   getInventoryItem(id: number): Promise<Inventory | undefined>;
   createInventoryItem(item: InsertInventory): Promise<Inventory>;
   updateInventoryItem(id: number, item: Partial<InsertInventory>): Promise<Inventory>;
+  deleteInventoryItem(id: number): Promise<void>;
 
   // Sales Orders
   getSalesOrders(): Promise<SalesOrder[]>;
@@ -37,6 +39,10 @@ export interface IStorage {
   getBankAccount(id: number): Promise<BankAccount | undefined>;
   createBankAccount(account: InsertBankAccount): Promise<BankAccount>;
   updateBankAccount(id: number, account: Partial<InsertBankAccount>): Promise<BankAccount>;
+
+  // Bank Transactions
+  getBankTransactions(bankAccountId?: number): Promise<BankTransaction[]>;
+  createBankTransaction(transaction: InsertBankTransaction): Promise<BankTransaction>;
 
   // Expenses
   getExpenses(): Promise<Expense[]>;
@@ -115,6 +121,10 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async deleteInventoryItem(id: number): Promise<void> {
+    await db.delete(inventory).where(eq(inventory.id, id));
+  }
+
   // Sales Orders
   async getSalesOrders(): Promise<SalesOrder[]> {
     return await db.select().from(salesOrders).orderBy(desc(salesOrders.createdAt));
@@ -148,6 +158,21 @@ export class DatabaseStorage implements IStorage {
   async updateBankAccount(id: number, updates: Partial<InsertBankAccount>): Promise<BankAccount> {
     const [updated] = await db.update(bankAccounts).set(updates).where(eq(bankAccounts.id, id)).returning();
     return updated;
+  }
+
+  // Bank Transactions
+  async getBankTransactions(bankAccountId?: number): Promise<BankTransaction[]> {
+    if (bankAccountId) {
+      return await db.select().from(bankTransactions)
+        .where(eq(bankTransactions.bankAccountId, bankAccountId))
+        .orderBy(desc(bankTransactions.createdAt));
+    }
+    return await db.select().from(bankTransactions).orderBy(desc(bankTransactions.createdAt));
+  }
+
+  async createBankTransaction(transaction: InsertBankTransaction): Promise<BankTransaction> {
+    const [newTransaction] = await db.insert(bankTransactions).values(transaction).returning();
+    return newTransaction;
   }
 
   // Expenses

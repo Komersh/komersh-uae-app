@@ -64,3 +64,21 @@ export function useSellInventory() {
     },
   });
 }
+
+export function useDeleteInventory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.inventory.delete.path, { id });
+      const res = await fetch(url, {
+        method: api.inventory.delete.method,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete inventory item");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.inventory.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.dashboard.stats.path] });
+    },
+  });
+}
