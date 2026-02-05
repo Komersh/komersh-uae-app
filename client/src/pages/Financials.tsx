@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, Search, Filter, TrendingUp, TrendingDown, Building2, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { format } from "date-fns";
@@ -19,9 +20,15 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 
-const formSchema = insertExpenseSchema.extend({
-  amount: z.coerce.number(),
-  date: z.string(),
+const formSchema = z.object({
+  category: z.string().min(1, "Category is required"),
+  amount: z.coerce.number().min(0.01, "Amount is required"),
+  currency: z.string().default("USD"),
+  description: z.string().optional(),
+  date: z.string().min(1, "Date is required"),
+  paidBy: z.string().optional(),
+  paymentMethod: z.string().optional(),
+  bankAccountId: z.number().optional(),
 });
 
 const EXPENSE_CATEGORIES = ["Marketing", "Subscription", "Shipping", "Warehouse", "Tools", "Misc"];
@@ -277,15 +284,35 @@ export default function Financials() {
                               {item.currency || 'USD'} {parseFloat(item.amount).toFixed(2)}
                             </TableCell>
                             <TableCell>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => deleteExpense.mutate(item.id)}
-                                data-testid={`button-delete-expense-${item.id}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                    data-testid={`button-delete-expense-${item.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="bg-card border-border">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete "{item.description}"? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => deleteExpense.mutate(item.id)}
+                                      className="bg-destructive text-destructive-foreground"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </TableCell>
                           </TableRow>
                         ))
@@ -507,14 +534,24 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    createExpense.mutate(data, {
+    const expenseData = {
+      category: data.category,
+      amount: data.amount.toString(),
+      currency: data.currency,
+      description: data.description || null,
+      date: data.date,
+      paidBy: data.paidBy || null,
+      paymentMethod: data.paymentMethod || null,
+      bankAccountId: data.bankAccountId || null,
+    };
+    createExpense.mutate(expenseData as any, {
       onSuccess: () => {
         toast({ title: "Expense Added", description: "Your expense has been recorded." });
         onOpenChange(false);
         form.reset();
       },
-      onError: () => {
-        toast({ title: "Error", description: "Failed to add expense.", variant: "destructive" });
+      onError: (error) => {
+        toast({ title: "Error", description: error.message || "Failed to add expense.", variant: "destructive" });
       }
     });
   };

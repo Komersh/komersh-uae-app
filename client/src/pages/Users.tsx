@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Users as UsersIcon, UserPlus, Mail, Shield, CheckCircle, XCircle, Clock, Send } from "lucide-react";
+import { Users as UsersIcon, UserPlus, Mail, Shield, CheckCircle, XCircle, Clock, Send, MoreVertical, Edit, UserX, UserCheck } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,6 +36,45 @@ export default function UsersPage() {
 
   const { data: invitations, isLoading: invitationsLoading } = useQuery<Invitation[]>({
     queryKey: ["/api/invitations"],
+  });
+
+  const updateUserRole = useMutation({
+    mutationFn: async ({ id, role }: { id: string; role: string }) => {
+      await apiRequest(`/api/users/${id}/role`, { method: "PUT", body: JSON.stringify({ role }) });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Role Updated", description: "User role has been changed." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update role.", variant: "destructive" });
+    }
+  });
+
+  const deactivateUser = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest(`/api/users/${id}/deactivate`, { method: "POST" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "User Deactivated", description: "User access has been revoked." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to deactivate user.", variant: "destructive" });
+    }
+  });
+
+  const reactivateUser = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest(`/api/users/${id}/reactivate`, { method: "POST" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "User Reactivated", description: "User access has been restored." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to reactivate user.", variant: "destructive" });
+    }
   });
 
   const activeUsers = users?.filter(u => u.isActive) || [];
@@ -101,6 +142,7 @@ export default function UsersPage() {
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Joined</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -144,6 +186,82 @@ export default function UsersPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {user.createdAt ? format(new Date(user.createdAt), "MMM d, yyyy") : "-"}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" data-testid={`button-user-actions-${user.id}`}>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-card border-border">
+                              <DropdownMenuItem 
+                                className="text-foreground cursor-pointer"
+                                onClick={() => updateUserRole.mutate({ id: user.id, role: "admin" })}
+                                disabled={user.role === "admin"}
+                              >
+                                <Shield className="h-4 w-4 mr-2 text-red-500" /> Make Admin
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-foreground cursor-pointer"
+                                onClick={() => updateUserRole.mutate({ id: user.id, role: "marketing" })}
+                                disabled={user.role === "marketing"}
+                              >
+                                <Edit className="h-4 w-4 mr-2 text-blue-500" /> Set as Marketing
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-foreground cursor-pointer"
+                                onClick={() => updateUserRole.mutate({ id: user.id, role: "warehouse" })}
+                                disabled={user.role === "warehouse"}
+                              >
+                                <Edit className="h-4 w-4 mr-2 text-orange-500" /> Set as Warehouse
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-foreground cursor-pointer"
+                                onClick={() => updateUserRole.mutate({ id: user.id, role: "viewer" })}
+                                disabled={user.role === "viewer"}
+                              >
+                                <Edit className="h-4 w-4 mr-2 text-gray-500" /> Set as Viewer
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {user.isActive ? (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem 
+                                      className="text-destructive cursor-pointer"
+                                      onSelect={(e) => e.preventDefault()}
+                                    >
+                                      <UserX className="h-4 w-4 mr-2" /> Deactivate
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent className="bg-card border-border">
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Deactivate User</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to deactivate {user.firstName} {user.lastName}? They will lose access to the application.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => deactivateUser.mutate(user.id)}
+                                        className="bg-destructive text-destructive-foreground"
+                                      >
+                                        Deactivate
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              ) : (
+                                <DropdownMenuItem 
+                                  className="text-emerald-500 cursor-pointer"
+                                  onClick={() => reactivateUser.mutate(user.id)}
+                                >
+                                  <UserCheck className="h-4 w-4 mr-2" /> Reactivate
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))

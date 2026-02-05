@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Calendar, Clock, Tag, Flag, X, Edit, Check } from "lucide-react";
@@ -16,7 +17,12 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
-const formSchema = insertTaskSchema.extend({
+const formSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  status: z.string().default("open"),
+  priority: z.string().default("medium"),
+  labels: z.string().optional(),
   dueDate: z.string().optional(),
 });
 
@@ -178,13 +184,34 @@ function TaskCard({ task, isDragging, onDragStart, onDragEnd, onDelete, onClick 
     >
       <div className="flex justify-between items-start gap-2 mb-2">
         <h4 className="font-medium text-foreground text-sm leading-tight">{task.title}</h4>
-        <button 
-          onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity flex-shrink-0"
-          data-testid={`button-delete-task-${task.id}`}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+  <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button 
+              onClick={(e) => e.stopPropagation()}
+              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity flex-shrink-0"
+              data-testid={`button-delete-task-${task.id}`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="bg-card border-border" onClick={(e) => e.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Task</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{task.title}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+                className="bg-destructive text-destructive-foreground"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
       
       {task.description && (
@@ -408,14 +435,22 @@ function AddTaskDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (o
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    createTask.mutate(data, {
+    const taskData = {
+      title: data.title,
+      description: data.description || null,
+      status: data.status,
+      priority: data.priority,
+      labels: data.labels || null,
+      dueDate: data.dueDate || null,
+    };
+    createTask.mutate(taskData as any, {
       onSuccess: () => {
         toast({ title: "Task Created", description: "Let's get to work!" });
         onOpenChange(false);
         form.reset();
       },
-      onError: () => {
-        toast({ title: "Error", description: "Failed to create task.", variant: "destructive" });
+      onError: (error) => {
+        toast({ title: "Error", description: error.message || "Failed to create task.", variant: "destructive" });
       }
     });
   };

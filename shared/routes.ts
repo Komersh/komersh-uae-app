@@ -356,6 +356,22 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    deactivate: {
+      method: 'POST' as const,
+      path: '/api/users/:id/deactivate',
+      responses: {
+        200: z.object({ success: z.boolean() }),
+        404: errorSchemas.notFound,
+      },
+    },
+    reactivate: {
+      method: 'POST' as const,
+      path: '/api/users/:id/reactivate',
+      responses: {
+        200: z.object({ success: z.boolean() }),
+        404: errorSchemas.notFound,
+      },
+    },
     invite: {
       method: 'POST' as const,
       path: '/api/users/invite',

@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, ShoppingCart, Package, TrendingUp, AlertTriangle, Search, ExternalLink, DollarSign } from "lucide-react";
+import { Plus, Trash2, ShoppingCart, Package, TrendingUp, AlertTriangle, Search, ExternalLink, DollarSign, Upload, Image, Edit, X, Check } from "lucide-react";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -224,7 +225,7 @@ export default function Products() {
                                 >
                                   <ShoppingCart className="h-4 w-4" />
                                 </Button>
-                                <DeleteProductButton id={item.id} />
+                                <DeleteProductButton id={item.id} name={item.name} />
                               </div>
                             </TableCell>
                           </TableRow>
@@ -456,18 +457,38 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
   );
 }
 
-function DeleteProductButton({ id }: { id: number }) {
+function DeleteProductButton({ id, name }: { id: number; name: string }) {
   const deleteProduct = useDeletePotentialProduct();
   return (
-    <Button 
-      variant="ghost" 
-      size="icon" 
-      className="h-8 w-8 text-muted-foreground hover:text-red-400"
-      onClick={() => deleteProduct.mutate(id)}
-      data-testid={`button-delete-product-${id}`}
-    >
-      <Trash2 className="h-4 w-4" />
-    </Button>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="text-muted-foreground hover:text-red-400"
+          data-testid={`button-delete-product-${id}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent className="bg-card border-border">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Product</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete "{name}"? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={() => deleteProduct.mutate(id)}
+            className="bg-destructive text-destructive-foreground"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

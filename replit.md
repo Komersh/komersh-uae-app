@@ -120,6 +120,10 @@ The app runs on port 5000 with `npm run dev` which starts both the Express backe
 - All status badges and icons have proper light/dark variants
 - Files page supports custom folder creation beyond defaults
 - Enhanced file type icons for spreadsheets, videos, audio
+- **Delete confirmation dialogs** added across all pages (Products, Tasks, Files, Financials)
+- **User management** with role editing (admin/founder only) and deactivate/reactivate functionality
+- Fixed form schema issues in Tasks and Financials pages (explicit z.object instead of extending insert schemas)
+- Added authentication and authorization to user management routes
 
 ## Theme System
 - Light mode default with dark mode toggle

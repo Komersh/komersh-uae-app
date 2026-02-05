@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
-import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { EXCHANGE_RATES } from "@shared/schema";
 import multer from "multer";
 import path from "path";
@@ -545,10 +545,20 @@ export async function registerRoutes(
     res.json(usersList);
   });
 
-  app.put(api.users.updateRole.path, async (req, res) => {
+  app.put(api.users.updateRole.path, isAuthenticated, async (req: any, res) => {
     try {
+      const currentUserId = req.user?.claims?.sub;
+      const currentUser = await storage.getUsers().then(users => users.find(u => u.id === currentUserId));
+      if (!currentUser || !['admin', 'founder'].includes(currentUser.role || '')) {
+        return res.status(403).json({ message: "Only admins and founders can change user roles" });
+      }
       const id = req.params.id;
       const input = api.users.updateRole.input.parse(req.body);
+      const usersList = await storage.getUsers();
+      const targetUser = usersList.find(u => u.id === id);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
       await storage.updateUserRole(id, input.role);
       res.json({ success: true });
     } catch (err) {
@@ -560,6 +570,38 @@ export async function registerRoutes(
       }
       throw err;
     }
+  });
+
+  app.post(api.users.deactivate.path, isAuthenticated, async (req: any, res) => {
+    const currentUserId = req.user?.claims?.sub;
+    const currentUser = await storage.getUsers().then(users => users.find(u => u.id === currentUserId));
+    if (!currentUser || !['admin', 'founder'].includes(currentUser.role || '')) {
+      return res.status(403).json({ message: "Only admins and founders can deactivate users" });
+    }
+    const id = req.params.id;
+    const usersList = await storage.getUsers();
+    const user = usersList.find(u => u.id === id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    await storage.deactivateUser(id);
+    res.json({ success: true });
+  });
+
+  app.post(api.users.reactivate.path, isAuthenticated, async (req: any, res) => {
+    const currentUserId = req.user?.claims?.sub;
+    const currentUser = await storage.getUsers().then(users => users.find(u => u.id === currentUserId));
+    if (!currentUser || !['admin', 'founder'].includes(currentUser.role || '')) {
+      return res.status(403).json({ message: "Only admins and founders can reactivate users" });
+    }
+    const id = req.params.id;
+    const usersList = await storage.getUsers();
+    const user = usersList.find(u => u.id === id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    await storage.reactivateUser(id);
+    res.json({ success: true });
   });
 
   // === SETTINGS ===

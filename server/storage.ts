@@ -62,6 +62,8 @@ export interface IStorage {
   // Users
   getUsers(): Promise<User[]>;
   updateUserRole(id: string, role: string): Promise<void>;
+  deactivateUser(id: string): Promise<void>;
+  reactivateUser(id: string): Promise<void>;
   
   // Invitations
   getInvitations(): Promise<Invitation[]>;
@@ -217,6 +219,14 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserRole(id: string, role: string): Promise<void> {
     await db.update(users).set({ role }).where(eq(users.id, id));
+  }
+
+  async deactivateUser(id: string): Promise<void> {
+    await db.update(users).set({ isActive: false }).where(eq(users.id, id));
+  }
+
+  async reactivateUser(id: string): Promise<void> {
+    await db.update(users).set({ isActive: true }).where(eq(users.id, id));
   }
 
   // Invitations
