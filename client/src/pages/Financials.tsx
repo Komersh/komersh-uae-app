@@ -85,7 +85,14 @@ export default function Financials() {
     categoryData[cat] = (categoryData[cat] || 0) + convertCurrency(e.amount, e.currency || "USD", currency);
   });
   const pieData = Object.entries(categoryData).map(([name, value]) => ({ name, value }));
-  const COLORS = ['#8b5cf6', '#f43f5e', '#10b981', '#f59e0b', '#6366f1', '#ec4899'];
+  const CHART_COLORS = [
+  'hsl(280, 70%, 50%)', // primary purple
+  'hsl(340, 82%, 52%)', // rose
+  'hsl(160, 60%, 45%)', // emerald
+  'hsl(35, 92%, 50%)',  // amber
+  'hsl(230, 84%, 63%)', // indigo
+  'hsl(320, 84%, 60%)', // pink
+];
 
   // Monthly expense data
   const monthlyExpenseData: Record<string, number> = {};
@@ -100,15 +107,15 @@ export default function Financials() {
       <div className="flex flex-col gap-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Financial Records</h1>
+            <h1 className="text-3xl font-bold text-foreground">Financial Records</h1>
             <p className="text-muted-foreground mt-2">Track revenue, expenses, and profit across all channels.</p>
           </div>
           <div className="flex gap-4">
             <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-              <SelectTrigger className="w-24 bg-black/20 border-white/10" data-testid="select-display-currency">
+              <SelectTrigger className="w-24 bg-background border-border" data-testid="select-display-currency">
                 <SelectValue placeholder="Currency" />
               </SelectTrigger>
-              <SelectContent className="bg-card border-white/10 text-white">
+              <SelectContent className="bg-card border-border">
                 {CURRENCIES.map(c => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))}
@@ -123,23 +130,23 @@ export default function Financials() {
           <Card className="glass-card border-none bg-card/40">
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
                   <TrendingUp className="h-5 w-5" />
                 </div>
                 <span className="text-sm font-medium text-muted-foreground">Total Revenue</span>
               </div>
-              <p className="text-2xl font-bold text-white">{formatAmount(totalRevenue)}</p>
+              <p className="text-2xl font-bold text-foreground">{formatAmount(totalRevenue)}</p>
             </CardContent>
           </Card>
           <Card className="glass-card border-none bg-card/40">
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-rose-500/20 text-rose-400">
+                <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
                   <TrendingDown className="h-5 w-5" />
                 </div>
                 <span className="text-sm font-medium text-muted-foreground">Total Expenses</span>
               </div>
-              <p className="text-2xl font-bold text-white">{formatAmount(totalExpenses)}</p>
+              <p className="text-2xl font-bold text-foreground">{formatAmount(totalExpenses)}</p>
             </CardContent>
           </Card>
           <Card className="glass-card border-none bg-card/40">
@@ -150,7 +157,7 @@ export default function Financials() {
                 </div>
                 <span className="text-sm font-medium text-muted-foreground">Net Profit</span>
               </div>
-              <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                 {formatAmount(totalProfit)}
               </p>
             </CardContent>
@@ -158,12 +165,12 @@ export default function Financials() {
           <Card className="glass-card border-none bg-card/40">
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400">
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                   <Building2 className="h-5 w-5" />
                 </div>
                 <span className="text-sm font-medium text-muted-foreground">Bank Balance</span>
               </div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold text-foreground">
                 {formatAmount(bankAccounts?.reduce((sum: number, a: any) => 
                   sum + convertCurrency(a.balance, a.currency, currency), 0) || 0)}
               </p>
@@ -172,17 +179,17 @@ export default function Financials() {
         </div>
 
         <Tabs defaultValue="expenses" className="w-full">
-          <TabsList className="bg-black/20 border border-white/10 p-1 mb-6">
-            <TabsTrigger value="expenses" className="data-[state=active]:bg-primary text-muted-foreground data-[state=active]:text-white">
+          <TabsList className="bg-muted border border-border p-1 mb-6">
+            <TabsTrigger value="expenses">
               Expenses
             </TabsTrigger>
-            <TabsTrigger value="sales" className="data-[state=active]:bg-emerald-600 text-muted-foreground data-[state=active]:text-white">
+            <TabsTrigger value="sales">
               Sales Orders
             </TabsTrigger>
-            <TabsTrigger value="charts" className="data-[state=active]:bg-blue-600 text-muted-foreground data-[state=active]:text-white">
+            <TabsTrigger value="charts">
               Charts
             </TabsTrigger>
-            <TabsTrigger value="accounts" className="data-[state=active]:bg-purple-600 text-muted-foreground data-[state=active]:text-white">
+            <TabsTrigger value="accounts">
               Bank Accounts
             </TabsTrigger>
           </TabsList>
@@ -196,17 +203,17 @@ export default function Financials() {
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input 
                       placeholder="Search expenses..." 
-                      className="pl-8 bg-black/20 border-white/10"
+                      className="pl-8 bg-background border-border"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       data-testid="input-search-expenses"
                     />
                   </div>
                   <Select value={filterCategory} onValueChange={setFilterCategory}>
-                    <SelectTrigger className="w-40 bg-black/20 border-white/10" data-testid="select-filter-category">
+                    <SelectTrigger className="w-40 bg-background border-border" data-testid="select-filter-category">
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
-                    <SelectContent className="bg-card border-white/10 text-white">
+                    <SelectContent className="bg-card border-border">
                       <SelectItem value="all">All Categories</SelectItem>
                       {EXPENSE_CATEGORIES.map(cat => (
                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
@@ -214,10 +221,10 @@ export default function Financials() {
                     </SelectContent>
                   </Select>
                   <Select value={filterPaidBy} onValueChange={setFilterPaidBy}>
-                    <SelectTrigger className="w-40 bg-black/20 border-white/10" data-testid="select-filter-paidby">
+                    <SelectTrigger className="w-40 bg-background border-border" data-testid="select-filter-paidby">
                       <SelectValue placeholder="Paid By" />
                     </SelectTrigger>
-                    <SelectContent className="bg-card border-white/10 text-white">
+                    <SelectContent className="bg-card border-border">
                       <SelectItem value="all">All Sources</SelectItem>
                       {PAID_BY_OPTIONS.map(opt => (
                         <SelectItem key={opt} value={opt}>{opt}</SelectItem>
@@ -227,15 +234,15 @@ export default function Financials() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="rounded-md border border-white/10 overflow-hidden">
+                <div className="rounded-md border border-border overflow-hidden">
                   <Table>
-                    <TableHeader className="bg-white/5">
-                      <TableRow className="border-white/10 hover:bg-transparent">
-                        <TableHead className="text-white">Date</TableHead>
-                        <TableHead className="text-white">Category</TableHead>
-                        <TableHead className="text-white">Description</TableHead>
-                        <TableHead className="text-white">Paid By</TableHead>
-                        <TableHead className="text-right text-white">Amount</TableHead>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-foreground">Date</TableHead>
+                        <TableHead className="text-foreground">Category</TableHead>
+                        <TableHead className="text-foreground">Description</TableHead>
+                        <TableHead className="text-foreground">Paid By</TableHead>
+                        <TableHead className="text-right text-foreground">Amount</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -250,30 +257,30 @@ export default function Financials() {
                         </TableRow>
                       ) : (
                         filteredExpenses.map((item: any) => (
-                          <TableRow key={item.id} className="border-white/10 hover:bg-white/5 transition-colors group">
+                          <TableRow key={item.id} className="border-border hover:bg-muted/50 transition-colors group">
                             <TableCell className="font-mono text-muted-foreground">
                               {format(new Date(item.date), 'yyyy-MM-dd')}
                             </TableCell>
                             <TableCell>
                               <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
-                                item.category === 'Marketing' ? 'bg-purple-400/10 text-purple-400 ring-purple-400/30' :
-                                item.category === 'Shipping' ? 'bg-blue-400/10 text-blue-400 ring-blue-400/30' :
-                                item.category === 'Subscription' ? 'bg-emerald-400/10 text-emerald-400 ring-emerald-400/30' :
-                                'bg-gray-400/10 text-gray-400 ring-gray-400/30'
+                                item.category === 'Marketing' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 ring-purple-300 dark:ring-purple-700' :
+                                item.category === 'Shipping' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 ring-blue-300 dark:ring-blue-700' :
+                                item.category === 'Subscription' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 ring-green-300 dark:ring-green-700' :
+                                'bg-muted text-muted-foreground ring-border'
                               }`}>
                                 {item.category}
                               </span>
                             </TableCell>
-                            <TableCell className="text-white">{item.description}</TableCell>
+                            <TableCell className="text-foreground">{item.description}</TableCell>
                             <TableCell className="text-muted-foreground">{item.paidBy || '-'}</TableCell>
-                            <TableCell className="text-right font-mono font-bold text-white">
+                            <TableCell className="text-right font-mono font-bold text-foreground">
                               {item.currency || 'USD'} {parseFloat(item.amount).toFixed(2)}
                             </TableCell>
                             <TableCell>
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="h-8 w-8 text-muted-foreground hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
                                 onClick={() => deleteExpense.mutate(item.id)}
                                 data-testid={`button-delete-expense-${item.id}`}
                               >
@@ -296,17 +303,17 @@ export default function Financials() {
                 <CardTitle>Sales Orders</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="rounded-md border border-white/10 overflow-hidden">
+                <div className="rounded-md border border-border overflow-hidden">
                   <Table>
-                    <TableHeader className="bg-white/5">
-                      <TableRow className="border-white/10 hover:bg-transparent">
-                        <TableHead className="text-white">Date</TableHead>
-                        <TableHead className="text-white">Channel</TableHead>
-                        <TableHead className="text-white">Qty</TableHead>
-                        <TableHead className="text-right text-white">Revenue</TableHead>
-                        <TableHead className="text-right text-white">COGS</TableHead>
-                        <TableHead className="text-right text-white">Profit</TableHead>
-                        <TableHead className="text-white">Status</TableHead>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-foreground">Date</TableHead>
+                        <TableHead className="text-foreground">Channel</TableHead>
+                        <TableHead className="text-foreground">Qty</TableHead>
+                        <TableHead className="text-right text-foreground">Revenue</TableHead>
+                        <TableHead className="text-right text-foreground">COGS</TableHead>
+                        <TableHead className="text-right text-foreground">Profit</TableHead>
+                        <TableHead className="text-foreground">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -316,32 +323,32 @@ export default function Financials() {
                         </TableRow>
                       ) : (
                         salesOrders.map((order: any) => (
-                          <TableRow key={order.id} className="border-white/10 hover:bg-white/5 transition-colors">
+                          <TableRow key={order.id} className="border-border hover:bg-muted/50 transition-colors">
                             <TableCell className="font-mono text-muted-foreground">
                               {format(new Date(order.saleDate), 'yyyy-MM-dd')}
                             </TableCell>
                             <TableCell>
                               <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
-                                order.channel === 'Amazon UAE' ? 'bg-orange-400/10 text-orange-400 ring-orange-400/30' :
-                                order.channel === 'Noon' ? 'bg-yellow-400/10 text-yellow-400 ring-yellow-400/30' :
+                                order.channel === 'Amazon UAE' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 ring-orange-300 dark:ring-orange-700' :
+                                order.channel === 'Noon' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 ring-yellow-300 dark:ring-yellow-700' :
                                 'bg-primary/10 text-primary ring-primary/30'
                               }`}>
                                 {order.channel}
                               </span>
                             </TableCell>
-                            <TableCell className="text-white">{order.quantitySold}</TableCell>
-                            <TableCell className="text-right font-mono text-emerald-400">
+                            <TableCell className="text-foreground">{order.quantitySold}</TableCell>
+                            <TableCell className="text-right font-mono text-emerald-600 dark:text-emerald-400">
                               {order.currency} {parseFloat(order.totalRevenue).toFixed(2)}
                             </TableCell>
                             <TableCell className="text-right font-mono text-muted-foreground">
                               {order.currency} {parseFloat(order.cogs).toFixed(2)}
                             </TableCell>
-                            <TableCell className={`text-right font-mono font-bold ${parseFloat(order.profit) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            <TableCell className={`text-right font-mono font-bold ${parseFloat(order.profit) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                               {order.currency} {parseFloat(order.profit).toFixed(2)}
                             </TableCell>
                             <TableCell>
                               <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                                order.payoutStatus === 'received' ? 'bg-emerald-400/10 text-emerald-400' : 'bg-yellow-400/10 text-yellow-400'
+                                order.payoutStatus === 'received' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                               }`}>
                                 {order.payoutStatus}
                               </span>
@@ -366,14 +373,14 @@ export default function Financials() {
                   <div className="h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={barData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                        <XAxis dataKey="name" stroke="#888" tickLine={false} axisLine={false} />
-                        <YAxis stroke="#888" tickLine={false} axisLine={false} tickFormatter={(v) => `${getCurrencySymbol(currency)}${v}`} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" tick={{ fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
+                        <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${getCurrencySymbol(currency)}${v}`} />
                         <Tooltip 
-                          contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
+                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', color: 'hsl(var(--foreground))' }}
                           formatter={(value: any) => formatAmount(value)}
                         />
-                        <Bar dataKey="value" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -398,11 +405,11 @@ export default function Financials() {
                             label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                           >
                             {pieData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                             ))}
                           </Pie>
                           <Tooltip 
-                            contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
+                            contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', color: 'hsl(var(--foreground))' }}
                             formatter={(value: any) => formatAmount(value)}
                           />
                         </PieChart>
@@ -450,15 +457,15 @@ function BankAccountCard({ account }: { account: any }) {
     <Card className="glass-card border-none bg-card/40">
       <CardContent className="p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className={`p-3 rounded-lg ${account.type === 'payout_pending' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-blue-500/20 text-blue-400'}`}>
+          <div className={`p-3 rounded-lg ${account.type === 'payout_pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'}`}>
             <Building2 className="h-6 w-6" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">{account.name}</h3>
+            <h3 className="text-lg font-bold text-foreground">{account.name}</h3>
             <p className="text-xs text-muted-foreground capitalize">{account.type.replace('_', ' ')}</p>
           </div>
         </div>
-        <p className="text-3xl font-bold text-white mb-6">
+        <p className="text-3xl font-bold text-foreground mb-6">
           {account.currency} {parseFloat(account.balance).toLocaleString()}
         </p>
         <div className="flex gap-2">
@@ -467,13 +474,13 @@ function BankAccountCard({ account }: { account: any }) {
             placeholder="Amount" 
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="bg-black/20 border-white/10 flex-1"
+            className="bg-background border-border flex-1"
             data-testid={`input-adjust-${account.id}`}
           />
-          <Button size="icon" variant="outline" className="border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400" onClick={() => handleAdjust('add')} data-testid={`button-deposit-${account.id}`}>
+          <Button size="icon" variant="outline" className="text-emerald-600 dark:text-emerald-400" onClick={() => handleAdjust('add')} data-testid={`button-deposit-${account.id}`}>
             <ArrowUpRight className="h-4 w-4" />
           </Button>
-          <Button size="icon" variant="outline" className="border-rose-500/30 hover:bg-rose-500/20 text-rose-400" onClick={() => handleAdjust('subtract')} data-testid={`button-withdraw-${account.id}`}>
+          <Button size="icon" variant="outline" className="text-rose-600 dark:text-rose-400" onClick={() => handleAdjust('subtract')} data-testid={`button-withdraw-${account.id}`}>
             <ArrowDownRight className="h-4 w-4" />
           </Button>
         </div>
@@ -515,11 +522,11 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button className="bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25" data-testid="button-add-expense">
+        <Button className="shadow-lg shadow-primary/25" data-testid="button-add-expense">
           <Plus className="mr-2 h-4 w-4" /> Add Expense
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-card border-white/10 text-white sm:max-w-[500px]">
+      <DialogContent className="bg-card border-border sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add New Expense</DialogTitle>
         </DialogHeader>
@@ -531,10 +538,10 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
                 onValueChange={(val) => form.setValue("category", val)} 
                 defaultValue={form.getValues("category")}
               >
-                <SelectTrigger className="bg-black/20 border-white/10" data-testid="select-expense-category">
+                <SelectTrigger className="bg-background border-border" data-testid="select-expense-category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-white/10 text-white">
+                <SelectContent className="bg-card border-border">
                   {EXPENSE_CATEGORIES.map(cat => (
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
@@ -548,10 +555,10 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
                 onValueChange={(val) => form.setValue("currency", val)} 
                 defaultValue={form.getValues("currency")}
               >
-                <SelectTrigger className="bg-black/20 border-white/10" data-testid="select-expense-currency">
+                <SelectTrigger className="bg-background border-border" data-testid="select-expense-currency">
                   <SelectValue placeholder="Currency" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-white/10 text-white">
+                <SelectContent className="bg-card border-border">
                   {CURRENCIES.map(c => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
@@ -565,7 +572,7 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
               <label className="text-sm font-medium">Amount</label>
               <Input 
                 type="number" 
-                className="bg-black/20 border-white/10" 
+                className="bg-background border-border" 
                 {...form.register("amount")} 
                 data-testid="input-expense-amount"
               />
@@ -575,7 +582,7 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
               <label className="text-sm font-medium">Date</label>
               <Input 
                 type="date" 
-                className="bg-black/20 border-white/10" 
+                className="bg-background border-border" 
                 {...form.register("date")} 
                 data-testid="input-expense-date"
               />
@@ -586,10 +593,10 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
             <div className="space-y-2">
               <label className="text-sm font-medium">Paid By</label>
               <Select onValueChange={(val) => form.setValue("paidBy", val)}>
-                <SelectTrigger className="bg-black/20 border-white/10" data-testid="select-expense-paidby">
+                <SelectTrigger className="bg-background border-border" data-testid="select-expense-paidby">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-white/10 text-white">
+                <SelectContent className="bg-card border-border">
                   {PAID_BY_OPTIONS.map(opt => (
                     <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                   ))}
@@ -600,10 +607,10 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
             <div className="space-y-2">
               <label className="text-sm font-medium">Payment Method</label>
               <Select onValueChange={(val) => form.setValue("paymentMethod", val)}>
-                <SelectTrigger className="bg-black/20 border-white/10" data-testid="select-expense-method">
+                <SelectTrigger className="bg-background border-border" data-testid="select-expense-method">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-white/10 text-white">
+                <SelectContent className="bg-card border-border">
                   <SelectItem value="Bank">Bank</SelectItem>
                   <SelectItem value="Cash">Cash</SelectItem>
                   <SelectItem value="Card">Card</SelectItem>
@@ -615,14 +622,14 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
           <div className="space-y-2">
             <label className="text-sm font-medium">Description</label>
             <Input 
-              className="bg-black/20 border-white/10" 
+              className="bg-background border-border" 
               {...form.register("description")} 
               data-testid="input-expense-description"
             />
           </div>
 
           <div className="flex justify-end pt-4">
-            <Button type="submit" disabled={createExpense.isPending} className="bg-primary hover:bg-primary/90" data-testid="button-submit-expense">
+            <Button type="submit" disabled={createExpense.isPending} data-testid="button-submit-expense">
               {createExpense.isPending ? "Adding..." : "Add Expense"}
             </Button>
           </div>

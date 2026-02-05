@@ -112,6 +112,18 @@ The app runs on port 5000 with `npm run dev` which starts both the Express backe
 - Added comprehensive dashboard with charts
 - Implemented product research → inventory → sales flow
 - Added bank account management with balance adjustment
-- Added file upload section
+- Added file upload section with custom folder creation
 - Multi-currency display across all pages
 - Added expense filtering by category and paidBy
+- Fixed theme consistency across all pages (light/dark mode support)
+- Charts now use CSS variables for theme awareness
+- All status badges and icons have proper light/dark variants
+- Files page supports custom folder creation beyond defaults
+- Enhanced file type icons for spreadsheets, videos, audio
+
+## Theme System
+- Light mode default with dark mode toggle
+- Primary color: Purple/magenta (#B845D2) based on Komersh logo
+- All pages use semantic tokens (text-foreground, bg-background, etc.)
+- Color accents use explicit light/dark variants (e.g., text-green-700 dark:text-green-400)
+- Charts use CSS variables for theme-aware styling

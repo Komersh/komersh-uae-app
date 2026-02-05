@@ -21,14 +21,15 @@ import { CURRENCIES, type Currency } from "@shared/schema";
 
 const addProductSchema = z.object({
   name: z.string().min(1),
-  asin: z.string().optional(),
-  sourceUrl: z.string().optional(),
-  category: z.string().optional(),
-  estimatedCost: z.coerce.number().optional(),
-  potentialSellingPrice: z.coerce.number().optional(),
+  sku: z.string().optional(),
+  supplierLink: z.string().optional(),
+  supplierName: z.string().optional(),
+  marketplace: z.string().optional(),
+  costPerUnit: z.coerce.number().min(0, "Cost is required"),
+  targetSellingPrice: z.coerce.number().optional(),
   notes: z.string().optional(),
   currency: z.string().default("USD"),
-  researchStatus: z.string().default("researching"),
+  status: z.string().default("researching"),
 });
 
 const buyProductSchema = z.object({
@@ -61,21 +62,21 @@ export default function Products() {
   const [sellItem, setSellItem] = useState<any>(null);
 
   const filteredPotentialProducts = potentialProducts?.filter((p: any) => 
-    !search || p.name?.toLowerCase().includes(search.toLowerCase()) || p.asin?.toLowerCase().includes(search.toLowerCase())
+    !search || p.name?.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase())
   ) || [];
 
   const filteredInventory = inventory?.filter((p: any) => 
-    !search || p.productName?.toLowerCase().includes(search.toLowerCase())
+    !search || p.name?.toLowerCase().includes(search.toLowerCase())
   ) || [];
 
-  const lowStockItems = filteredInventory.filter((i: any) => i.quantityInStock <= (i.minStockThreshold || 5));
+  const lowStockItems = filteredInventory.filter((i: any) => (i.quantityAvailable || 0) <= 5 && i.status !== 'sold_out');
 
   return (
     <Layout>
       <div className="flex flex-col gap-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Product Management</h1>
+            <h1 className="text-3xl font-bold text-foreground">Product Management</h1>
             <p className="text-muted-foreground mt-2">Research potential products and manage your inventory.</p>
           </div>
           <AddProductDialog open={isAddOpen} onOpenChange={setIsAddOpen} />
@@ -89,7 +90,7 @@ export default function Products() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Researching</p>
-                <p className="text-2xl font-bold text-white">{potentialProducts?.filter((p: any) => p.researchStatus === 'researching').length || 0}</p>
+                <p className="text-2xl font-bold text-foreground">{potentialProducts?.filter((p: any) => p.status === 'researching').length || 0}</p>
               </div>
             </CardContent>
           </Card>
@@ -100,7 +101,7 @@ export default function Products() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">In Stock</p>
-                <p className="text-2xl font-bold text-white">{filteredInventory.reduce((sum: number, i: any) => sum + i.quantityInStock, 0)}</p>
+                <p className="text-2xl font-bold text-foreground">{filteredInventory.reduce((sum: number, i: any) => sum + (i.quantityAvailable || 0), 0)}</p>
               </div>
             </CardContent>
           </Card>
@@ -111,7 +112,7 @@ export default function Products() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Low Stock</p>
-                <p className="text-2xl font-bold text-white">{lowStockItems.length}</p>
+                <p className="text-2xl font-bold text-foreground">{lowStockItems.length}</p>
               </div>
             </CardContent>
           </Card>
@@ -122,7 +123,7 @@ export default function Products() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Sold</p>
-                <p className="text-2xl font-bold text-white">{filteredInventory.reduce((sum: number, i: any) => sum + i.quantitySold, 0)}</p>
+                <p className="text-2xl font-bold text-foreground">{filteredInventory.reduce((sum: number, i: any) => sum + ((i.quantity || 0) - (i.quantityAvailable || 0)), 0)}</p>
               </div>
             </CardContent>
           </Card>
@@ -159,12 +160,12 @@ export default function Products() {
                   <Table>
                     <TableHeader className="bg-white/5">
                       <TableRow className="border-white/10 hover:bg-transparent">
-                        <TableHead className="text-white">Product</TableHead>
-                        <TableHead className="text-white">ASIN</TableHead>
-                        <TableHead className="text-white">Category</TableHead>
-                        <TableHead className="text-white">Status</TableHead>
-                        <TableHead className="text-right text-white">Est. Cost</TableHead>
-                        <TableHead className="text-right text-white">Sell Price</TableHead>
+                        <TableHead className="text-foreground">Product</TableHead>
+                        <TableHead className="text-foreground">SKU</TableHead>
+                        <TableHead className="text-foreground">Marketplace</TableHead>
+                        <TableHead className="text-foreground">Status</TableHead>
+                        <TableHead className="text-right text-foreground">Cost</TableHead>
+                        <TableHead className="text-right text-foreground">Sell Price</TableHead>
                         <TableHead className="w-[120px]"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -181,35 +182,36 @@ export default function Products() {
                         </TableRow>
                       ) : (
                         filteredPotentialProducts.map((item: any) => (
-                          <TableRow key={item.id} className="border-white/10 hover:bg-white/5 transition-colors group">
+                          <TableRow key={item.id} className="border-border hover:bg-muted/50 transition-colors group">
                             <TableCell>
                               <div className="flex flex-col">
-                                <span className="text-white font-medium">{item.name}</span>
-                                {item.sourceUrl && (
-                                  <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
-                                    Source <ExternalLink className="h-3 w-3" />
+                                <span className="text-foreground font-medium">{item.name}</span>
+                                {item.supplierLink && (
+                                  <a href={item.supplierLink} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                                    Supplier <ExternalLink className="h-3 w-3" />
                                   </a>
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono text-muted-foreground">{item.asin || '-'}</TableCell>
+                            <TableCell className="font-mono text-muted-foreground">{item.sku || '-'}</TableCell>
                             <TableCell>
-                              <span className="text-muted-foreground">{item.category || '-'}</span>
+                              <span className="text-muted-foreground">{item.marketplace || '-'}</span>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={item.researchStatus === 'approved' ? 'default' : item.researchStatus === 'rejected' ? 'destructive' : 'secondary'} className={
-                                item.researchStatus === 'approved' ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30' :
-                                item.researchStatus === 'rejected' ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30' :
+                              <Badge variant={item.status === 'ready_to_buy' ? 'default' : item.status === 'rejected' ? 'destructive' : 'secondary'} className={
+                                item.status === 'ready_to_buy' ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30' :
+                                item.status === 'rejected' ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30' :
+                                item.status === 'bought' ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30' :
                                 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
                               }>
-                                {item.researchStatus}
+                                {item.status}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right font-mono text-white">
-                              {item.estimatedCost ? `${item.currency || 'USD'} ${parseFloat(item.estimatedCost).toFixed(2)}` : '-'}
+                            <TableCell className="text-right font-mono text-foreground">
+                              {item.costPerUnit ? `${item.currency || 'USD'} ${parseFloat(item.costPerUnit).toFixed(2)}` : '-'}
                             </TableCell>
-                            <TableCell className="text-right font-mono text-emerald-400">
-                              {item.potentialSellingPrice ? `${item.currency || 'USD'} ${parseFloat(item.potentialSellingPrice).toFixed(2)}` : '-'}
+                            <TableCell className="text-right font-mono text-emerald-600 dark:text-emerald-400">
+                              {item.targetSellingPrice ? `${item.currency || 'USD'} ${parseFloat(item.targetSellingPrice).toFixed(2)}` : '-'}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -243,14 +245,14 @@ export default function Products() {
               <CardContent>
                 <div className="rounded-md border border-white/10 overflow-hidden">
                   <Table>
-                    <TableHeader className="bg-white/5">
-                      <TableRow className="border-white/10 hover:bg-transparent">
-                        <TableHead className="text-white">Product</TableHead>
-                        <TableHead className="text-center text-white">In Stock</TableHead>
-                        <TableHead className="text-center text-white">Sold</TableHead>
-                        <TableHead className="text-right text-white">Unit Cost</TableHead>
-                        <TableHead className="text-right text-white">Total Value</TableHead>
-                        <TableHead className="text-white">Status</TableHead>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-foreground">Product</TableHead>
+                        <TableHead className="text-center text-foreground">In Stock</TableHead>
+                        <TableHead className="text-center text-foreground">Sold</TableHead>
+                        <TableHead className="text-right text-foreground">Unit Cost</TableHead>
+                        <TableHead className="text-right text-foreground">Total Value</TableHead>
+                        <TableHead className="text-foreground">Status</TableHead>
                         <TableHead className="w-[100px]"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -267,36 +269,40 @@ export default function Products() {
                         </TableRow>
                       ) : (
                         filteredInventory.map((item: any) => {
-                          const isLowStock = item.quantityInStock <= (item.minStockThreshold || 5);
-                          const totalValue = parseFloat(item.unitCost) * item.quantityInStock;
+                          const quantityAvailable = item.quantityAvailable || 0;
+                          const quantitySold = (item.quantity || 0) - quantityAvailable;
+                          const isLowStock = quantityAvailable <= 5 && item.status !== 'sold_out';
+                          const totalValue = parseFloat(item.unitCost || 0) * quantityAvailable;
                           return (
-                            <TableRow key={item.id} className={`border-white/10 hover:bg-white/5 transition-colors group ${isLowStock ? 'bg-yellow-500/5' : ''}`}>
+                            <TableRow key={item.id} className={`border-border hover:bg-muted/50 transition-colors group ${isLowStock ? 'bg-yellow-500/5' : ''}`}>
                               <TableCell>
-                                <span className="text-white font-medium">{item.productName}</span>
+                                <span className="text-foreground font-medium">{item.name}</span>
                               </TableCell>
-                              <TableCell className="text-center font-bold text-white">{item.quantityInStock}</TableCell>
-                              <TableCell className="text-center text-emerald-400 font-medium">{item.quantitySold}</TableCell>
+                              <TableCell className="text-center font-bold text-foreground">{quantityAvailable}</TableCell>
+                              <TableCell className="text-center text-emerald-600 dark:text-emerald-400 font-medium">{quantitySold}</TableCell>
                               <TableCell className="text-right font-mono text-muted-foreground">
-                                {item.currency} {parseFloat(item.unitCost).toFixed(2)}
+                                {item.currency} {parseFloat(item.unitCost || 0).toFixed(2)}
                               </TableCell>
-                              <TableCell className="text-right font-mono text-white">
+                              <TableCell className="text-right font-mono text-foreground">
                                 {item.currency} {totalValue.toFixed(2)}
                               </TableCell>
                               <TableCell>
-                                {isLowStock ? (
+                                {item.status === 'sold_out' ? (
+                                  <Badge className="bg-gray-500/20 text-gray-400 hover:bg-gray-500/30">Sold Out</Badge>
+                                ) : isLowStock ? (
                                   <Badge className="bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30">
                                     <AlertTriangle className="h-3 w-3 mr-1" /> Low Stock
                                   </Badge>
                                 ) : (
-                                  <Badge className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30">In Stock</Badge>
+                                  <Badge className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30">{item.status || 'In Stock'}</Badge>
                                 )}
                               </TableCell>
                               <TableCell>
                                 <Button 
                                   size="sm"
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity bg-primary hover:bg-primary/90 text-white"
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity bg-primary hover:bg-primary/90"
                                   onClick={() => setSellItem(item)}
-                                  disabled={item.quantityInStock === 0}
+                                  disabled={quantityAvailable === 0}
                                   data-testid={`button-sell-${item.id}`}
                                 >
                                   <DollarSign className="h-4 w-4 mr-1" /> Sell
@@ -329,22 +335,29 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     resolver: zodResolver(addProductSchema),
     defaultValues: {
       name: "",
-      asin: "",
-      sourceUrl: "",
-      category: "",
-      estimatedCost: undefined,
-      potentialSellingPrice: undefined,
+      sku: "",
+      supplierLink: "",
+      supplierName: "",
+      marketplace: "",
+      costPerUnit: 0,
+      targetSellingPrice: undefined,
       notes: "",
       currency: "USD",
-      researchStatus: "researching",
+      status: "researching",
     }
   });
 
   const onSubmit = (data: z.infer<typeof addProductSchema>) => {
     createProduct.mutate({
-      ...data,
-      estimatedCost: data.estimatedCost?.toString(),
-      potentialSellingPrice: data.potentialSellingPrice?.toString(),
+      name: data.name,
+      supplierLink: data.supplierLink,
+      supplierName: data.supplierName,
+      marketplace: data.marketplace,
+      costPerUnit: data.costPerUnit.toString(),
+      targetSellingPrice: data.targetSellingPrice?.toString(),
+      notes: data.notes,
+      currency: data.currency,
+      status: data.status,
     }, {
       onSuccess: () => {
         toast({ title: "Product Added", description: "Product added to research list." });
@@ -357,44 +370,60 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button className="bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25" data-testid="button-add-product">
+        <Button className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25" data-testid="button-add-product">
           <Plus className="mr-2 h-4 w-4" /> Add Product
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-card border-white/10 text-white sm:max-w-[600px]">
+      <DialogContent className="bg-card border-border sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Add Product for Research</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Product Name *</label>
-            <Input className="bg-black/20 border-white/10" {...form.register("name")} data-testid="input-product-name" />
+            <Input className="bg-background border-border" {...form.register("name")} data-testid="input-product-name" />
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">ASIN</label>
-              <Input className="bg-black/20 border-white/10" {...form.register("asin")} data-testid="input-product-asin" />
+              <label className="text-sm font-medium">SKU</label>
+              <Input className="bg-background border-border" {...form.register("sku")} data-testid="input-product-sku" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
-              <Input className="bg-black/20 border-white/10" {...form.register("category")} data-testid="input-product-category" />
+              <label className="text-sm font-medium">Marketplace</label>
+              <Select onValueChange={(val) => form.setValue("marketplace", val)} defaultValue="">
+                <SelectTrigger className="bg-background border-border" data-testid="select-product-marketplace">
+                  <SelectValue placeholder="Select marketplace" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="Amazon UAE">Amazon UAE</SelectItem>
+                  <SelectItem value="Noon">Noon</SelectItem>
+                  <SelectItem value="Komersh.ae">Komersh.ae</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Source URL</label>
-            <Input className="bg-black/20 border-white/10" {...form.register("sourceUrl")} data-testid="input-product-url" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Supplier Name</label>
+              <Input className="bg-background border-border" {...form.register("supplierName")} data-testid="input-supplier-name" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Supplier Link</label>
+              <Input className="bg-background border-border" {...form.register("supplierLink")} data-testid="input-supplier-link" />
+            </div>
           </div>
           
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Currency</label>
               <Select onValueChange={(val) => form.setValue("currency", val)} defaultValue="USD">
-                <SelectTrigger className="bg-black/20 border-white/10" data-testid="select-product-currency">
+                <SelectTrigger className="bg-background border-border" data-testid="select-product-currency">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-white/10 text-white">
+                <SelectContent className="bg-card border-border">
                   {CURRENCIES.map(c => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
@@ -402,18 +431,18 @@ function AddProductDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Est. Cost</label>
-              <Input type="number" step="0.01" className="bg-black/20 border-white/10" {...form.register("estimatedCost")} data-testid="input-product-cost" />
+              <label className="text-sm font-medium">Cost Per Unit *</label>
+              <Input type="number" step="0.01" className="bg-background border-border" {...form.register("costPerUnit")} data-testid="input-product-cost" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Sell Price</label>
-              <Input type="number" step="0.01" className="bg-black/20 border-white/10" {...form.register("potentialSellingPrice")} data-testid="input-product-price" />
+              <label className="text-sm font-medium">Target Sell Price</label>
+              <Input type="number" step="0.01" className="bg-background border-border" {...form.register("targetSellingPrice")} data-testid="input-product-price" />
             </div>
           </div>
           
           <div className="space-y-2">
             <label className="text-sm font-medium">Notes</label>
-            <Textarea className="bg-black/20 border-white/10 resize-none" {...form.register("notes")} data-testid="input-product-notes" />
+            <Textarea className="bg-background border-border resize-none" {...form.register("notes")} data-testid="input-product-notes" />
           </div>
           
           <div className="flex justify-end pt-4">
@@ -450,7 +479,7 @@ function BuyProductDialog({ item, onClose }: { item: any; onClose: () => void })
     resolver: zodResolver(buyProductSchema),
     defaultValues: {
       quantity: 1,
-      unitCost: item?.estimatedCost ? parseFloat(item.estimatedCost) : 0,
+      unitCost: item?.costPerUnit ? parseFloat(item.costPerUnit) : 0,
       shippingCost: undefined,
       supplierOrderId: "",
       purchaseDate: new Date().toISOString().split('T')[0],
