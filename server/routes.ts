@@ -23,6 +23,115 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
 
+  // === EMAIL/PASSWORD LOGIN ===
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      const users = await storage.getUsers();
+      const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      if (!user.isActive) {
+        return res.status(403).json({ message: "Account is deactivated" });
+      }
+      
+      if (!user.passwordHash) {
+        return res.status(401).json({ message: "Please use Replit login for this account" });
+      }
+      
+      const isValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isValid) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Set session
+      (req.session as any).userId = user.id;
+      (req.session as any).user = {
+        claims: {
+          sub: user.id,
+          email: user.email,
+          first_name: user.firstName,
+          last_name: user.lastName,
+          profile_image_url: user.profileImageUrl,
+        }
+      };
+      
+      res.json({ 
+        success: true, 
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+        }
+      });
+    } catch (err) {
+      console.error("Login error:", err);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, inviteToken } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      // Check if invitation exists and is valid
+      const invitations = await storage.getInvitations();
+      const invitation = invitations.find(i => 
+        i.email.toLowerCase() === email.toLowerCase() && 
+        i.token === inviteToken && 
+        !i.used
+      );
+      
+      if (!invitation) {
+        return res.status(403).json({ message: "Valid invitation required" });
+      }
+      
+      // Check if email already exists
+      const users = await storage.getUsers();
+      const existingUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+      if (existingUser) {
+        return res.status(409).json({ message: "Email already registered" });
+      }
+      
+      // Hash password and create user
+      const passwordHash = await bcrypt.hash(password, 10);
+      const newUser = await storage.upsertUser({
+        id: crypto.randomUUID(),
+        email,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        passwordHash,
+        role: invitation.role || 'viewer',
+        isActive: true,
+      });
+      
+      // Mark invitation as used
+      await storage.updateInvitation(invitation.id, { used: true });
+      
+      res.status(201).json({ 
+        success: true, 
+        message: "Account created. Please log in."
+      });
+    } catch (err) {
+      console.error("Registration error:", err);
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
   // === POTENTIAL PRODUCTS ===
   app.get(api.potentialProducts.list.path, async (req, res) => {
     const products = await storage.getPotentialProducts();
@@ -393,14 +502,27 @@ export async function registerRoutes(
     }
   });
 
-  app.post(api.bankAccounts.adjustBalance.path, async (req, res) => {
+  app.post(api.bankAccounts.adjustBalance.path, isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const input = api.bankAccounts.adjustBalance.input.parse(req.body);
+      const userId = req.user?.claims?.sub;
       
       const account = await storage.getBankAccount(id);
       if (!account) {
         return res.status(404).json({ message: "Bank account not found" });
+      }
+
+      // Get user name for activity log
+      let userName = "System";
+      if (userId) {
+        const users = await storage.getUsers();
+        const currentUser = users.find(u => u.id === userId);
+        if (currentUser) {
+          userName = currentUser.firstName && currentUser.lastName 
+            ? `${currentUser.firstName} ${currentUser.lastName}` 
+            : currentUser.email || "User";
+        }
       }
 
       const currentBalance = parseFloat(account.balance);
@@ -423,10 +545,11 @@ export async function registerRoutes(
       });
 
       await storage.createActivityLog({
+        userId: userId || null,
         action: input.type === 'add' ? 'deposit' : 'withdrawal',
         entityType: 'bank_account',
         entityId: id,
-        details: `${input.type === 'add' ? 'Added' : 'Subtracted'} ${input.amount} ${input.description ? `- ${input.description}` : ''}`,
+        details: `${userName} ${input.type === 'add' ? 'added' : 'subtracted'} ${input.amount} ${account.currency} ${input.description ? `- ${input.description}` : ''}`,
       });
 
       res.json(updated);
@@ -768,7 +891,11 @@ export async function registerRoutes(
     const totalSalesOrders = salesOrdersList.length;
     const pendingSalesCount = salesOrdersList.filter(o => o.payoutStatus === 'pending').length;
     const receivedSalesCount = salesOrdersList.filter(o => o.payoutStatus === 'received').length;
-    const totalUnitsInStock = inventoryItems.reduce((sum, item) => sum + (item.quantityAvailable || 0), 0);
+    // Only count units that are physically in warehouse or listed for sale
+    const inStockStatuses = ['in_warehouse', 'listed'];
+    const totalUnitsInStock = inventoryItems
+      .filter(item => inStockStatuses.includes(item.status || ''))
+      .reduce((sum, item) => sum + (item.quantityAvailable || 0), 0);
 
     res.json({
       totalInventoryValue: totalInventoryValue.toFixed(2),

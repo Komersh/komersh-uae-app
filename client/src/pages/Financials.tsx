@@ -301,55 +301,60 @@ export default function Financials() {
           </Card>
         </div>
 
-        <div className="flex gap-2 mb-6 flex-wrap">
-          <button
-            onClick={() => setActiveTab("expenses")}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              activeTab === "expenses"
-                ? "bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-lg"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-            data-testid="tab-expenses"
-          >
-            <TrendingDown className="h-4 w-4 inline mr-2" />
-            Expenses
-          </button>
-          <button
-            onClick={() => setActiveTab("sales")}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              activeTab === "sales"
-                ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-            data-testid="tab-sales"
-          >
-            <TrendingUp className="h-4 w-4 inline mr-2" />
-            Sales Orders
-          </button>
-          <button
-            onClick={() => setActiveTab("charts")}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              activeTab === "charts"
-                ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-lg"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-            data-testid="tab-charts"
-          >
-            Charts
-          </button>
-          <button
-            onClick={() => setActiveTab("accounts")}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              activeTab === "accounts"
-                ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-            data-testid="tab-accounts"
-          >
-            <Building2 className="h-4 w-4 inline mr-2" />
-            Bank Accounts
-          </button>
-        </div>
+        <Card className="bg-card border-border mb-6">
+          <CardContent className="p-2">
+            <div className="flex justify-center gap-1 flex-wrap">
+              <button
+                onClick={() => setActiveTab("expenses")}
+                className={`flex-1 min-w-[140px] max-w-[200px] px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                  activeTab === "expenses"
+                    ? "bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-lg"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+                data-testid="tab-expenses"
+              >
+                <TrendingDown className="h-4 w-4" />
+                Expenses
+              </button>
+              <button
+                onClick={() => setActiveTab("sales")}
+                className={`flex-1 min-w-[140px] max-w-[200px] px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                  activeTab === "sales"
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+                data-testid="tab-sales"
+              >
+                <TrendingUp className="h-4 w-4" />
+                Sales Orders
+              </button>
+              <button
+                onClick={() => setActiveTab("charts")}
+                className={`flex-1 min-w-[140px] max-w-[200px] px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                  activeTab === "charts"
+                    ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-lg"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+                data-testid="tab-charts"
+              >
+                <ArrowUpDown className="h-4 w-4" />
+                Charts
+              </button>
+              <button
+                onClick={() => setActiveTab("accounts")}
+                className={`flex-1 min-w-[140px] max-w-[200px] px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                  activeTab === "accounts"
+                    ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+                data-testid="tab-accounts"
+              >
+                <Building2 className="h-4 w-4" />
+                Bank Accounts
+              </button>
+            </div>
+          </CardContent>
+        </Card>
 
         {activeTab === "expenses" && (
             <Card className="glass-card bg-card/40 border-none">

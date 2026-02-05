@@ -6,12 +6,12 @@ import { cn } from "@/lib/utils";
 import komershLogoLight from "@assets/Komersh_(one-click_black_color)_(1)_1770316808493.png";
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Financials', href: '/financials', icon: Wallet },
-  { name: 'Products', href: '/products', icon: ShoppingBag },
-  { name: 'Tasks', href: '/tasks', icon: KanbanSquare },
-  { name: 'Files', href: '/files', icon: FolderOpen },
-  { name: 'Users', href: '/users', icon: Users },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, color: 'text-blue-500' },
+  { name: 'Financials', href: '/financials', icon: Wallet, color: 'text-emerald-500' },
+  { name: 'Products', href: '/products', icon: ShoppingBag, color: 'text-orange-500' },
+  { name: 'Tasks', href: '/tasks', icon: KanbanSquare, color: 'text-purple-500' },
+  { name: 'Files', href: '/files', icon: FolderOpen, color: 'text-yellow-500' },
+  { name: 'Users', href: '/users', icon: Users, color: 'text-pink-500' },
 ];
 
 interface SidebarProps {
@@ -52,7 +52,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                   )}
                   data-testid={`nav-${item.name.toLowerCase()}`}
                 >
-                  <item.icon className={cn("h-5 w-5 shrink-0", isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground")} aria-hidden="true" />
+                  <item.icon className={cn("h-5 w-5 shrink-0", isActive ? "text-primary-foreground" : item.color)} aria-hidden="true" />
                   {item.name}
                 </div>
               </Link>

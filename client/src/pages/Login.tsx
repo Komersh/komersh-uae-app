@@ -1,11 +1,53 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Package, TrendingUp, ShoppingCart, BarChart3 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Package, TrendingUp, ShoppingCart, BarChart3, Mail, Lock, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import komershLogo from "@assets/Komersh_(one-click_black_color)_1769958478589.png";
 
 export default function Login() {
-  const handleLogin = () => {
+  const { toast } = useToast();
+  const [loginMode, setLoginMode] = useState<"replit" | "email">("replit");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleReplitLogin = () => {
     window.location.href = "/api/login";
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      toast({ title: "Error", description: "Please enter email and password", variant: "destructive" });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        toast({ title: "Login Failed", description: data.message, variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Success", description: "Logged in successfully" });
+      window.location.href = "/";
+    } catch (err) {
+      toast({ title: "Error", description: "Login failed. Please try again.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -71,29 +113,104 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
           <Card className="bg-card/80 backdrop-blur-xl border-border shadow-2xl">
-            <CardContent className="pt-12 pb-12 px-8 text-center flex flex-col items-center">
+            <CardContent className="pt-10 pb-10 px-8 text-center flex flex-col items-center">
               {/* Logo */}
-              <div className="mb-8 p-6 rounded-2xl bg-gradient-to-br from-primary/10 to-purple-600/10 border border-border shadow-inner">
+              <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-primary/10 to-purple-600/10 border border-border shadow-inner">
                 <img 
                   src={komershLogo} 
                   alt="Komersh Logo" 
-                  className="h-20 w-auto object-contain"
+                  className="h-16 w-auto object-contain"
                 />
               </div>
               
-              <h1 className="text-3xl font-display font-bold text-foreground mb-2">Welcome Back</h1>
-              <p className="text-muted-foreground mb-8">
-                Sign in to access your command center
+              <h1 className="text-3xl font-display font-bold text-foreground mb-1">Komersh UAE</h1>
+              <p className="text-muted-foreground mb-6">
+                Sign in to access your e-commerce command center
               </p>
 
-              <Button 
-                onClick={handleLogin}
-                size="lg"
-                className="w-full h-14 text-lg font-semibold bg-primary text-white shadow-lg shadow-primary/30"
-                data-testid="button-login"
-              >
-                Log In with Replit
-              </Button>
+              {/* Login Mode Toggle */}
+              <div className="flex w-full rounded-lg bg-muted p-1 mb-6">
+                <button
+                  onClick={() => setLoginMode("replit")}
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                    loginMode === "replit" 
+                      ? "bg-background text-foreground shadow" 
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Replit
+                </button>
+                <button
+                  onClick={() => setLoginMode("email")}
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                    loginMode === "email" 
+                      ? "bg-background text-foreground shadow" 
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Email
+                </button>
+              </div>
+
+              {loginMode === "replit" ? (
+                <Button 
+                  onClick={handleReplitLogin}
+                  size="lg"
+                  className="w-full h-12 text-lg font-semibold bg-primary text-white shadow-lg shadow-primary/30"
+                  data-testid="button-login"
+                >
+                  Log In with Replit
+                </Button>
+              ) : (
+                <form onSubmit={handleEmailLogin} className="w-full space-y-4">
+                  <div className="space-y-2 text-left">
+                    <Label htmlFor="email" className="text-foreground">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="your@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-10 bg-background border-border"
+                        data-testid="input-email"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-left">
+                    <Label htmlFor="password" className="text-foreground">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10 bg-background border-border"
+                        data-testid="input-password"
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    type="submit"
+                    size="lg"
+                    disabled={isLoading}
+                    className="w-full h-12 text-lg font-semibold bg-primary text-white shadow-lg shadow-primary/30"
+                    data-testid="button-email-login"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      "Sign In"
+                    )}
+                  </Button>
+                </form>
+              )}
 
               <p className="text-xs text-muted-foreground mt-6">
                 Internal access only. Contact admin for invitation.
