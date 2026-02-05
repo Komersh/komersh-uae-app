@@ -124,6 +124,11 @@ The app runs on port 5000 with `npm run dev` which starts both the Express backe
 - **User management** with role editing (admin/founder only) and deactivate/reactivate functionality
 - Fixed form schema issues in Tasks and Financials pages (explicit z.object instead of extending insert schemas)
 - Added authentication and authorization to user management routes
+- **Notification system** with bell icon in header, task assignment notifications, read/unread status
+- **Product research tracking** - "Added By" column shows which user added each product
+- **Germany Bank account** added in EUR currency for European operations
+- Fixed sell dialog field colors to use theme-aware classes
+- Fixed apiRequest call signatures for user management operations
 
 ## Theme System
 - Light mode default with dark mode toggle
