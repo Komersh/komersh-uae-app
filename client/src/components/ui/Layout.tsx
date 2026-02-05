@@ -1,6 +1,7 @@
 import { Sidebar } from "../Sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
+import { NotificationBell } from "../NotificationBell";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { isLoading, isAuthenticated } = useAuth();
@@ -20,11 +21,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-muted/30 p-8">
-        <div className="mx-auto max-w-7xl animate-in fade-in duration-500">
-          {children}
-        </div>
-      </main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="h-14 flex items-center justify-end gap-4 px-6 border-b border-border bg-background">
+          <NotificationBell />
+        </header>
+        <main className="flex-1 overflow-y-auto bg-muted/30 p-8">
+          <div className="mx-auto max-w-7xl animate-in fade-in duration-500">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

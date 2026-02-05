@@ -1,5 +1,5 @@
 import { 
-  potentialProducts, inventory, salesOrders, bankAccounts, bankTransactions, expenses, tasks, attachments, activityLog,
+  potentialProducts, inventory, salesOrders, bankAccounts, bankTransactions, expenses, tasks, attachments, activityLog, notifications,
   type PotentialProduct, type InsertPotentialProduct,
   type Inventory, type InsertInventory,
   type SalesOrder, type InsertSalesOrder,
@@ -8,7 +8,8 @@ import {
   type Expense, type InsertExpense,
   type Task, type InsertTask,
   type Attachment, type InsertAttachment,
-  type ActivityLog, type InsertActivityLog
+  type ActivityLog, type InsertActivityLog,
+  type Notification, type InsertNotification
 } from "@shared/schema";
 import { users, invitations, type User, type Invitation, type InsertInvitation } from "@shared/models/auth";
 import { db } from "./db";
@@ -65,6 +66,12 @@ export interface IStorage {
   getActivityLog(): Promise<ActivityLog[]>;
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
 
+  // Notifications
+  getNotifications(userId: string): Promise<Notification[]>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationRead(id: number): Promise<void>;
+  markAllNotificationsRead(userId: string): Promise<void>;
+
   // Users
   getUsers(): Promise<User[]>;
   updateUserRole(id: string, role: string): Promise<void>;
@@ -74,6 +81,11 @@ export interface IStorage {
   // Invitations
   getInvitations(): Promise<Invitation[]>;
   createInvitation(invitation: InsertInvitation): Promise<Invitation>;
+  markInvitationUsed(id: string): Promise<void>;
+
+  // User password
+  updateUserPassword(id: string, passwordHash: string): Promise<void>;
+  getUserByEmail(email: string): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -262,6 +274,38 @@ export class DatabaseStorage implements IStorage {
   async createInvitation(invitation: InsertInvitation): Promise<Invitation> {
     const [newInvitation] = await db.insert(invitations).values(invitation).returning();
     return newInvitation;
+  }
+
+  async markInvitationUsed(id: string): Promise<void> {
+    await db.update(invitations).set({ used: true }).where(eq(invitations.id, id));
+  }
+
+  // Notifications
+  async getNotifications(userId: string): Promise<Notification[]> {
+    return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db.insert(notifications).values(notification).returning();
+    return newNotification;
+  }
+
+  async markNotificationRead(id: number): Promise<void> {
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
+  }
+
+  // User password
+  async updateUserPassword(id: string, passwordHash: string): Promise<void> {
+    await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
   }
 }
 

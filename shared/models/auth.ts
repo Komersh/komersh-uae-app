@@ -21,6 +21,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  passwordHash: varchar("password_hash"), // For email/password login
   role: varchar("role").default("viewer"), // admin, founder, marketing, warehouse, viewer
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),

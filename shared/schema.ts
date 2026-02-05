@@ -32,6 +32,7 @@ export const potentialProducts = pgTable("potential_products", {
   notes: text("notes"),
   buyRating: integer("buy_rating").default(3), // 1-5
   status: text("status").notNull().default("researching"), // researching, ready_to_buy, rejected, bought
+  createdByUserId: varchar("created_by_user_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -186,6 +187,23 @@ export const activityLog = pgTable("activity_log", {
 export const insertActivityLogSchema = createInsertSchema(activityLog).omit({ id: true, createdAt: true });
 export type ActivityLog = typeof activityLog.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+
+// === NOTIFICATIONS ===
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  type: text("type").notNull(), // task_assigned, sale_created, expense_added, inventory_update, status_change
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  entityType: text("entity_type"), // task, sale, expense, inventory, product
+  entityId: integer("entity_id"),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
 // Keep old products table for backward compatibility but mark as deprecated
 export const products = pgTable("products", {

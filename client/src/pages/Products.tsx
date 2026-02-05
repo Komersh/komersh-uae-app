@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/ui/Layout";
 import { usePotentialProducts, useCreatePotentialProduct, useUpdatePotentialProduct, useDeletePotentialProduct, useBuyPotentialProduct } from "@/hooks/use-potential-products";
 import { useInventory, useSellInventory, useDeleteInventory } from "@/hooks/use-inventory";
@@ -56,6 +56,7 @@ const SALES_CHANNELS = ["Amazon UAE", "Amazon Germany", "Noon", "Own Website", "
 export default function Products() {
   const { data: potentialProducts, isLoading: ppLoading } = usePotentialProducts();
   const { data: inventory, isLoading: invLoading } = useInventory();
+  const { data: users } = useQuery<any[]>({ queryKey: ['/api/users'] });
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -65,6 +66,16 @@ export default function Products() {
   const [editInventory, setEditInventory] = useState<any>(null);
   const [currency, setCurrency] = useState<Currency>("USD");
   const [activeTab, setActiveTab] = useState("research");
+
+  const getUserName = (userId: string | null) => {
+    if (!userId) return null;
+    const user = users?.find((u: any) => u.id === userId);
+    if (!user) return null;
+    if (user.firstName && user.lastName) return `${user.firstName} ${user.lastName}`;
+    if (user.firstName) return user.firstName;
+    if (user.email) return user.email.split('@')[0];
+    return null;
+  };
 
   const convertCurrency = (value: string | number, fromCurrency: string, toCurrency: Currency) => {
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
@@ -230,17 +241,18 @@ export default function Products() {
                         <TableHead className="text-foreground">Rating</TableHead>
                         <TableHead className="text-right text-foreground">Cost</TableHead>
                         <TableHead className="text-right text-foreground">Sell Price</TableHead>
+                        <TableHead className="text-foreground">Added By</TableHead>
                         <TableHead className="w-[120px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {ppLoading ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
+                          <TableCell colSpan={9} className="text-center py-8">Loading...</TableCell>
                         </TableRow>
                       ) : filteredPotentialProducts.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                             No products yet. Add a product to start researching.
                           </TableCell>
                         </TableRow>
@@ -288,6 +300,13 @@ export default function Products() {
                             </TableCell>
                             <TableCell className="text-right font-mono text-emerald-600 dark:text-emerald-400">
                               {item.targetSellingPrice ? `${item.currency || 'USD'} ${parseFloat(item.targetSellingPrice).toFixed(2)}` : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {getUserName(item.createdByUserId) ? (
+                                <span className="text-sm text-muted-foreground">{getUserName(item.createdByUserId)}</span>
+                              ) : (
+                                <span className="text-sm text-muted-foreground/50">-</span>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1">
@@ -853,20 +872,20 @@ function SellProductDialog({ item, onClose }: { item: any; onClose: () => void }
 
   return (
     <Dialog open={!!item} onOpenChange={() => onClose()}>
-      <DialogContent className="bg-card border-white/10 text-white sm:max-w-[500px]">
+      <DialogContent className="bg-card border-border sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Sell: {item.productName}</DialogTitle>
+          <DialogTitle className="text-foreground">Sell: {item.productName}</DialogTitle>
         </DialogHeader>
-        <div className="text-sm text-muted-foreground mb-4">Available stock: <span className="text-white font-bold">{item.quantityInStock}</span></div>
+        <div className="text-sm text-muted-foreground mb-4">Available stock: <span className="text-foreground font-bold">{item.quantityInStock}</span></div>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Sales Channel *</label>
+              <label className="text-sm font-medium text-foreground">Sales Channel *</label>
               <Select onValueChange={(val) => form.setValue("channel", val)} defaultValue="Amazon UAE">
-                <SelectTrigger className="bg-black/20 border-white/10" data-testid="select-sell-channel">
+                <SelectTrigger className="bg-background border-border text-foreground" data-testid="select-sell-channel">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-white/10 text-white">
+                <SelectContent className="bg-card border-border">
                   {SALES_CHANNELS.map(ch => (
                     <SelectItem key={ch} value={ch}>{ch}</SelectItem>
                   ))}
@@ -874,36 +893,36 @@ function SellProductDialog({ item, onClose }: { item: any; onClose: () => void }
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Quantity *</label>
-              <Input type="number" min="1" max={item.quantityInStock} className="bg-black/20 border-white/10" {...form.register("quantitySold")} data-testid="input-sell-qty" />
+              <label className="text-sm font-medium text-foreground">Quantity *</label>
+              <Input type="number" min="1" max={item.quantityInStock} className="bg-background border-border text-foreground" {...form.register("quantitySold")} data-testid="input-sell-qty" />
             </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Selling Price / Unit ({item.currency}) *</label>
-              <Input type="number" step="0.01" className="bg-black/20 border-white/10" {...form.register("sellingPricePerUnit")} data-testid="input-sell-price" />
+              <label className="text-sm font-medium text-foreground">Selling Price / Unit ({item.currency}) *</label>
+              <Input type="number" step="0.01" className="bg-background border-border text-foreground" {...form.register("sellingPricePerUnit")} data-testid="input-sell-price" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Sale Date</label>
-              <Input type="date" className="bg-black/20 border-white/10" {...form.register("saleDate")} data-testid="input-sell-date" />
+              <label className="text-sm font-medium text-foreground">Sale Date</label>
+              <Input type="date" className="bg-background border-border text-foreground" {...form.register("saleDate")} data-testid="input-sell-date" />
             </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Marketplace Fees</label>
-              <Input type="number" step="0.01" className="bg-black/20 border-white/10" {...form.register("marketplaceFees")} data-testid="input-sell-fees" />
+              <label className="text-sm font-medium text-foreground">Marketplace Fees</label>
+              <Input type="number" step="0.01" className="bg-background border-border text-foreground" {...form.register("marketplaceFees")} data-testid="input-sell-fees" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Shipping Cost</label>
-              <Input type="number" step="0.01" className="bg-black/20 border-white/10" {...form.register("shippingCost")} data-testid="input-sell-shipping" />
+              <label className="text-sm font-medium text-foreground">Shipping Cost</label>
+              <Input type="number" step="0.01" className="bg-background border-border text-foreground" {...form.register("shippingCost")} data-testid="input-sell-shipping" />
             </div>
           </div>
           
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="border-white/10">Cancel</Button>
-            <Button type="submit" disabled={sellProduct.isPending} className="bg-primary hover:bg-primary/90" data-testid="button-confirm-sell">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={sellProduct.isPending} data-testid="button-confirm-sell">
               {sellProduct.isPending ? "Processing..." : "Confirm Sale"}
             </Button>
           </div>

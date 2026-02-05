@@ -40,7 +40,7 @@ export default function UsersPage() {
 
   const updateUserRole = useMutation({
     mutationFn: async ({ id, role }: { id: string; role: string }) => {
-      await apiRequest(`/api/users/${id}/role`, { method: "PUT", body: JSON.stringify({ role }) });
+      await apiRequest("PUT", `/api/users/${id}/role`, { role });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -53,7 +53,7 @@ export default function UsersPage() {
 
   const deactivateUser = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest(`/api/users/${id}/deactivate`, { method: "POST" });
+      await apiRequest("POST", `/api/users/${id}/deactivate`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -66,7 +66,7 @@ export default function UsersPage() {
 
   const reactivateUser = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest(`/api/users/${id}/reactivate`, { method: "POST" });
+      await apiRequest("POST", `/api/users/${id}/reactivate`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });

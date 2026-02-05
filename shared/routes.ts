@@ -9,6 +9,7 @@ import {
   insertTaskSchema, tasks,
   insertAttachmentSchema, attachments,
   insertActivityLogSchema, activityLog,
+  insertNotificationSchema, notifications,
   type InsertPotentialProduct,
   type InsertInventory,
   type InsertSalesOrder,
@@ -18,6 +19,7 @@ import {
   type InsertTask,
   type InsertAttachment,
   type InsertActivityLog,
+  type InsertNotification,
 } from './schema';
 
 export type {
@@ -30,6 +32,7 @@ export type {
   InsertTask,
   InsertAttachment,
   InsertActivityLog,
+  InsertNotification,
 };
 
 export const errorSchemas = {
@@ -447,6 +450,87 @@ export const api = {
           token: z.string(),
           expiresAt: z.string(),
         }),
+        400: errorSchemas.validation,
+      },
+    },
+  },
+
+  // === NOTIFICATIONS ===
+  notifications: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/notifications',
+      responses: {
+        200: z.array(z.object({
+          id: z.number(),
+          userId: z.string(),
+          type: z.string(),
+          title: z.string(),
+          message: z.string(),
+          entityType: z.string().nullable(),
+          entityId: z.number().nullable(),
+          isRead: z.boolean().nullable(),
+          createdAt: z.string().nullable(),
+        })),
+      },
+    },
+    markRead: {
+      method: 'POST' as const,
+      path: '/api/notifications/:id/read',
+      responses: {
+        200: z.object({ success: z.boolean() }),
+      },
+    },
+    markAllRead: {
+      method: 'POST' as const,
+      path: '/api/notifications/mark-all-read',
+      responses: {
+        200: z.object({ success: z.boolean() }),
+      },
+    },
+  },
+
+  // === AUTH ===
+  auth: {
+    setupPassword: {
+      method: 'POST' as const,
+      path: '/api/auth/setup-password',
+      input: z.object({
+        token: z.string(),
+        password: z.string().min(6, "Password must be at least 6 characters"),
+      }),
+      responses: {
+        200: z.object({ success: z.boolean() }),
+        400: errorSchemas.validation,
+      },
+    },
+    login: {
+      method: 'POST' as const,
+      path: '/api/auth/login',
+      input: z.object({
+        email: z.string().email(),
+        password: z.string(),
+      }),
+      responses: {
+        200: z.object({ success: z.boolean(), user: z.object({
+          id: z.string(),
+          email: z.string().nullable(),
+          firstName: z.string().nullable(),
+          lastName: z.string().nullable(),
+          role: z.string().nullable(),
+        }) }),
+        401: errorSchemas.validation,
+      },
+    },
+    changePassword: {
+      method: 'POST' as const,
+      path: '/api/auth/change-password',
+      input: z.object({
+        currentPassword: z.string(),
+        newPassword: z.string().min(6, "Password must be at least 6 characters"),
+      }),
+      responses: {
+        200: z.object({ success: z.boolean() }),
         400: errorSchemas.validation,
       },
     },

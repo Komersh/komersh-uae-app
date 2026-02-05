@@ -8,6 +8,7 @@ import { EXCHANGE_RATES } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import bcrypt from "bcryptjs";
 
 const upload = multer({
   dest: 'uploads/',
@@ -28,14 +29,19 @@ export async function registerRoutes(
     res.json(products);
   });
 
-  app.post(api.potentialProducts.create.path, async (req, res) => {
+  app.post(api.potentialProducts.create.path, async (req: any, res) => {
     try {
       const input = api.potentialProducts.create.input.parse(req.body);
-      const product = await storage.createPotentialProduct(input);
+      const userId = req.user?.claims?.sub || null;
+      const product = await storage.createPotentialProduct({
+        ...input,
+        createdByUserId: userId,
+      });
       await storage.createActivityLog({
         action: 'created',
         entityType: 'potential_product',
         entityId: product.id,
+        userId,
         details: `Added potential product: ${product.name}`,
       });
       res.status(201).json(product);
@@ -491,14 +497,31 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.tasks.update.path, async (req, res) => {
+  app.put(api.tasks.update.path, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const input = api.tasks.update.input.parse(req.body);
+      
+      // Get the old task to check for assignee changes
+      const oldTask = await storage.getTasks().then(tasks => tasks.find(t => t.id === id));
+      
       const task = await storage.updateTask(id, input);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
+
+      // Send notification if assignee changed
+      if (input.assigneeId && input.assigneeId !== oldTask?.assigneeId) {
+        await storage.createNotification({
+          userId: input.assigneeId,
+          type: 'task_assigned',
+          title: 'New Task Assigned',
+          message: `You have been assigned to: ${task.title}`,
+          entityType: 'task',
+          entityId: task.id,
+        });
+      }
+
       res.json(task);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -719,6 +742,152 @@ export async function registerRoutes(
           message: err.errors[0].message,
           field: err.errors[0].path.join('.'),
         });
+      }
+      throw err;
+    }
+  });
+
+  // === NOTIFICATIONS ===
+  app.get(api.notifications.list.path, isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const notifications = await storage.getNotifications(userId);
+    res.json(notifications);
+  });
+
+  app.post(api.notifications.markRead.path, isAuthenticated, async (req: any, res) => {
+    const id = parseInt(req.params.id);
+    await storage.markNotificationRead(id);
+    res.json({ success: true });
+  });
+
+  app.post(api.notifications.markAllRead.path, isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    await storage.markAllNotificationsRead(userId);
+    res.json({ success: true });
+  });
+
+  // === AUTH (Password-based) ===
+  app.post(api.auth.setupPassword.path, async (req, res) => {
+    try {
+      const input = api.auth.setupPassword.input.parse(req.body);
+      const invitationsList = await storage.getInvitations();
+      const invitation = invitationsList.find(i => i.token === input.token && !i.used);
+      
+      if (!invitation) {
+        return res.status(400).json({ message: "Invalid or expired invitation token" });
+      }
+      
+      if (new Date(invitation.expiresAt) < new Date()) {
+        return res.status(400).json({ message: "Invitation has expired" });
+      }
+
+      // Hash the password
+      const passwordHash = await bcrypt.hash(input.password, 10);
+      
+      // Create the user or update existing
+      const usersList = await storage.getUsers();
+      let user = usersList.find(u => u.email === invitation.email);
+      
+      if (user) {
+        await storage.updateUserPassword(user.id, passwordHash);
+      } else {
+        // User doesn't exist yet, create a new user with the invitation info
+        const db = (await import("./db")).db;
+        const { users } = await import("@shared/models/auth");
+        const crypto = await import('crypto');
+        const newUserId = crypto.randomUUID();
+        
+        await db.insert(users).values({
+          id: newUserId,
+          email: invitation.email,
+          passwordHash: passwordHash,
+          role: invitation.role,
+          isActive: true,
+        });
+      }
+
+      // Mark invitation as used
+      await storage.markInvitationUsed(invitation.id);
+      
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  app.post(api.auth.login.path, async (req, res) => {
+    try {
+      const input = api.auth.login.input.parse(req.body);
+      const user = await storage.getUserByEmail(input.email);
+      
+      if (!user || !user.passwordHash) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      const isValid = await bcrypt.compare(input.password, user.passwordHash);
+      if (!isValid) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      if (!user.isActive) {
+        return res.status(401).json({ message: "Account is deactivated" });
+      }
+
+      // Set session (simplified - in production would use proper session management)
+      (req as any).session = (req as any).session || {};
+      (req as any).session.userId = user.id;
+      
+      res.json({ 
+        success: true, 
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          firstName: user.firstName, 
+          lastName: user.lastName, 
+          role: user.role 
+        } 
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(401).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.post(api.auth.changePassword.path, isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      const input = api.auth.changePassword.input.parse(req.body);
+      const usersList = await storage.getUsers();
+      const user = usersList.find(u => u.id === userId);
+      
+      if (!user || !user.passwordHash) {
+        return res.status(400).json({ message: "Password not set for this account" });
+      }
+
+      const isValid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+      if (!isValid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      const newPasswordHash = await bcrypt.hash(input.newPassword, 10);
+      await storage.updateUserPassword(userId, newPasswordHash);
+      
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
       }
       throw err;
     }
