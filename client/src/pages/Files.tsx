@@ -1,13 +1,16 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Layout } from "@/components/ui/Layout";
 import { useAttachments, useUploadAttachment, useDeleteAttachment } from "@/hooks/use-attachments";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Upload, Trash2, FileText, Image, File, FolderOpen, Download, FolderPlus, FileSpreadsheet, FileVideo, FileAudio, ChevronRight, ArrowLeft, Folder } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Upload, Trash2, FileText, Image, File, FolderOpen, Download, FolderPlus, FileSpreadsheet, FileVideo, FileAudio, ChevronRight, ArrowLeft, Folder, MoreVertical, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,9 +24,43 @@ export default function Files() {
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [isRenameFolderOpen, setIsRenameFolderOpen] = useState(false);
+  const [folderToRename, setFolderToRename] = useState<string | null>(null);
+  const [renameFolderName, setRenameFolderName] = useState("");
+
+  const renameFolder = useMutation({
+    mutationFn: async ({ oldName, newName }: { oldName: string; newName: string }) => {
+      return apiRequest('PUT', `/api/folders/${oldName}`, { newName });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/attachments'] });
+      toast({ title: "Folder Renamed", description: `Folder renamed successfully.` });
+      if (currentFolder === variables.oldName) {
+        const sanitized = variables.newName.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+        setCurrentFolder(sanitized);
+      }
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to rename folder.", variant: "destructive" });
+    },
+  });
+
+  const deleteFolder = useMutation({
+    mutationFn: async (folderName: string) => {
+      return apiRequest('DELETE', `/api/folders/${folderName}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/attachments'] });
+      toast({ title: "Folder Deleted", description: "Folder and all its files have been deleted." });
+      setCurrentFolder(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete folder.", variant: "destructive" });
+    },
+  });
 
   const attachmentFolders = attachments?.map((a: any) => a.folder).filter(Boolean) || [];
-  const uniqueAttachmentFolders = [...new Set(attachmentFolders)] as string[];
+  const uniqueAttachmentFolders = Array.from(new Set(attachmentFolders)) as string[];
   const customFolders = uniqueAttachmentFolders.filter(f => !DEFAULT_FOLDERS.includes(f));
   const allFolders = [...DEFAULT_FOLDERS, ...customFolders];
 
@@ -180,20 +217,115 @@ export default function Files() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {allFolders.map((folder) => {
                   const fileCount = getFolderFileCount(folder);
+                  const isDefaultFolder = DEFAULT_FOLDERS.includes(folder);
                   return (
-                    <button
+                    <div
                       key={folder}
-                      onClick={() => setCurrentFolder(folder)}
-                      className="flex flex-col items-center p-6 rounded-lg border border-border bg-background hover:bg-muted/50 transition-colors cursor-pointer group"
+                      className="relative flex flex-col items-center p-6 rounded-lg border border-border bg-background hover:bg-muted/50 transition-colors cursor-pointer group"
                       data-testid={`folder-${folder}`}
                     >
-                      <Folder className="h-12 w-12 text-primary mb-3 group-hover:scale-110 transition-transform" />
-                      <span className="text-foreground font-medium capitalize">{folder}</span>
-                      <span className="text-xs text-muted-foreground mt-1">{fileCount} file{fileCount !== 1 ? 's' : ''}</span>
-                    </button>
+                      <button 
+                        onClick={() => setCurrentFolder(folder)}
+                        className="flex flex-col items-center w-full"
+                      >
+                        <Folder className="h-12 w-12 text-primary mb-3 group-hover:scale-110 transition-transform" />
+                        <span className="text-foreground font-medium capitalize">{folder}</span>
+                        <span className="text-xs text-muted-foreground mt-1">{fileCount} file{fileCount !== 1 ? 's' : ''}</span>
+                      </button>
+                      {!isDefaultFolder && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button 
+                              className="absolute top-2 right-2 p-1 rounded hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
+                              onClick={(e) => e.stopPropagation()}
+                              data-testid={`folder-menu-${folder}`}
+                            >
+                              <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-card border-border">
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFolderToRename(folder);
+                                setRenameFolderName(folder);
+                                setIsRenameFolderOpen(true);
+                              }}
+                              data-testid={`button-rename-folder-${folder}`}
+                            >
+                              <Edit className="h-4 w-4 mr-2" /> Rename
+                            </DropdownMenuItem>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem 
+                                  onSelect={(e) => e.preventDefault()}
+                                  className="text-destructive focus:text-destructive"
+                                  data-testid={`button-delete-folder-${folder}`}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="bg-card border-border">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Folder</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{folder}" and all {fileCount} files in it? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => deleteFolder.mutate(folder)}
+                                    className="bg-destructive text-destructive-foreground"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
                   );
                 })}
               </div>
+
+              {/* Rename Folder Dialog */}
+              <Dialog open={isRenameFolderOpen} onOpenChange={setIsRenameFolderOpen}>
+                <DialogContent className="bg-card border-border sm:max-w-[400px]">
+                  <DialogHeader>
+                    <DialogTitle>Rename Folder</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">New Folder Name</label>
+                      <Input 
+                        className="bg-background border-border" 
+                        value={renameFolderName}
+                        onChange={(e) => setRenameFolderName(e.target.value)}
+                        placeholder="e.g., contracts, photos..."
+                        data-testid="input-rename-folder"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsRenameFolderOpen(false)}>Cancel</Button>
+                    <Button 
+                      onClick={() => {
+                        if (folderToRename && renameFolderName) {
+                          renameFolder.mutate({ oldName: folderToRename, newName: renameFolderName });
+                          setIsRenameFolderOpen(false);
+                        }
+                      }} 
+                      disabled={!renameFolderName.trim()}
+                      data-testid="button-confirm-rename-folder"
+                    >
+                      Rename
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         ) : (

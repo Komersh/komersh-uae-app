@@ -118,6 +118,7 @@ export default function Tasks() {
               onDelete={(id) => deleteTask.mutate(id)}
               onTaskClick={setSelectedTask}
               draggedTask={draggedTask}
+              users={users || []}
             />
           ))}
         </div>
@@ -138,7 +139,7 @@ export default function Tasks() {
 
 function TaskColumn({ 
   title, tasks, status, color, headerColor, isDropTarget,
-  onDrop, onDragOver, onDragLeave, onDragStart, onDragEnd, onDelete, onTaskClick, draggedTask
+  onDrop, onDragOver, onDragLeave, onDragStart, onDragEnd, onDelete, onTaskClick, draggedTask, users
 }: any) {
   return (
     <div 
@@ -163,6 +164,7 @@ function TaskColumn({
             onDragEnd={onDragEnd}
             onDelete={onDelete}
             onClick={() => onTaskClick(task)}
+            users={users}
           />
         ))}
         {tasks.length === 0 && (
@@ -175,8 +177,9 @@ function TaskColumn({
   );
 }
 
-function TaskCard({ task, isDragging, onDragStart, onDragEnd, onDelete, onClick }: any) {
+function TaskCard({ task, isDragging, onDragStart, onDragEnd, onDelete, onClick, users }: any) {
   const priorityColor = PRIORITIES.find(p => p.value === task.priority)?.color || PRIORITIES[1].color;
+  const assignee = task.assigneeId ? users?.find((u: any) => u.id === task.assigneeId) : null;
 
   return (
     <div
@@ -240,15 +243,35 @@ function TaskCard({ task, isDragging, onDragStart, onDragEnd, onDelete, onClick 
       </div>
 
       <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2">
-        {task.dueDate && (
+        <div className="flex items-center gap-2">
+          {assignee ? (
+            <div className="flex items-center gap-1.5">
+              <Avatar className="h-5 w-5">
+                <AvatarImage src={assignee.profileImageUrl || undefined} />
+                <AvatarFallback className="text-[8px] bg-primary/20 text-primary">
+                  {(assignee.firstName?.[0] || '') + (assignee.lastName?.[0] || '')}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-muted-foreground">{assignee.firstName || 'User'}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-muted-foreground/60">
+              <User className="h-3 w-3" />
+              <span>Not Assigned</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {task.dueDate && (
+            <div className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              <span>{format(new Date(task.dueDate), 'MMM d')}</span>
+            </div>
+          )}
           <div className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            <span>{format(new Date(task.dueDate), 'MMM d')}</span>
+            <Clock className="h-3 w-3" />
+            <span>{format(new Date(task.createdAt), 'MMM d')}</span>
           </div>
-        )}
-        <div className="flex items-center gap-1 ml-auto">
-          <Clock className="h-3 w-3" />
-          <span>{format(new Date(task.createdAt), 'MMM d')}</span>
         </div>
       </div>
     </div>

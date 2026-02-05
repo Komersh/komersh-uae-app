@@ -63,6 +63,8 @@ export interface IStorage {
   getAttachments(): Promise<Attachment[]>;
   createAttachment(attachment: InsertAttachment): Promise<Attachment>;
   deleteAttachment(id: number): Promise<void>;
+  renameFolder(oldName: string, newName: string): Promise<void>;
+  deleteFolder(folderName: string): Promise<void>;
 
   // Activity Log
   getActivityLog(): Promise<ActivityLog[]>;
@@ -249,6 +251,14 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAttachment(id: number): Promise<void> {
     await db.delete(attachments).where(eq(attachments.id, id));
+  }
+
+  async renameFolder(oldName: string, newName: string): Promise<void> {
+    await db.update(attachments).set({ folder: newName }).where(eq(attachments.folder, oldName));
+  }
+
+  async deleteFolder(folderName: string): Promise<void> {
+    await db.delete(attachments).where(eq(attachments.folder, folderName));
   }
 
   // Activity Log

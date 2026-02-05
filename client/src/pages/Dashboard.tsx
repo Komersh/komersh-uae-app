@@ -130,37 +130,37 @@ export default function Dashboard() {
 
         {/* Secondary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <Card className="bg-card/40">
+          <Card className="bg-card border-border">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-foreground">{stats?.totalSalesOrders || 0}</p>
               <p className="text-xs text-muted-foreground">Total Sales</p>
             </CardContent>
           </Card>
-          <Card className="bg-card/40">
+          <Card className="bg-card border-border">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-500">{stats?.pendingSalesCount || 0}</p>
+              <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">{stats?.pendingSalesCount || 0}</p>
               <p className="text-xs text-muted-foreground">Pending Payouts</p>
             </CardContent>
           </Card>
-          <Card className="bg-card/40">
+          <Card className="bg-card border-border">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-500">{stats?.receivedSalesCount || 0}</p>
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">{stats?.receivedSalesCount || 0}</p>
               <p className="text-xs text-muted-foreground">Received Payouts</p>
             </CardContent>
           </Card>
-          <Card className="bg-card/40">
+          <Card className="bg-card border-border">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-foreground">{stats?.totalUnitsInStock || 0}</p>
               <p className="text-xs text-muted-foreground">Units in Stock</p>
             </CardContent>
           </Card>
-          <Card className="bg-card/40">
+          <Card className="bg-card border-border">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-orange-500">{stats?.totalProductsResearching || 0}</p>
+              <p className="text-2xl font-bold text-orange-600 dark:text-orange-500">{stats?.totalProductsResearching || 0}</p>
               <p className="text-xs text-muted-foreground">Researching</p>
             </CardContent>
           </Card>
-          <Card className="bg-card/40">
+          <Card className="bg-card border-border">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-primary">{stats?.totalProductsReadyToBuy || 0}</p>
               <p className="text-xs text-muted-foreground">Ready to Buy</p>
@@ -171,29 +171,29 @@ export default function Dashboard() {
         {/* Bank Accounts */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {bankAccounts?.map((account: any) => (
-            <Card key={account.id} className="glass-card border-none bg-card/40">
+            <Card key={account.id} className="bg-card border-border">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className={`p-2 rounded-lg ${account.type === 'payout_pending' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                  <div className={`p-2 rounded-lg ${account.type === 'payout_pending' ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400' : 'bg-blue-500/20 text-blue-600 dark:text-blue-400'}`}>
                     {account.type === 'payout_pending' ? <Clock className="h-4 w-4" /> : <Building2 className="h-4 w-4" />}
                   </div>
                   <span className="text-sm font-medium text-muted-foreground">{account.name}</span>
                 </div>
-                <p className="text-xl font-bold text-white">
+                <p className="text-xl font-bold text-foreground">
                   {account.currency} {parseFloat(account.balance).toLocaleString()}
                 </p>
               </CardContent>
             </Card>
           ))}
-          <Card className="glass-card border-none bg-card/40">
+          <Card className="bg-card border-border">
             <CardContent className="p-4">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">
+                <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                   <Wallet className="h-4 w-4" />
                 </div>
                 <span className="text-sm font-medium text-muted-foreground">Total Balance</span>
               </div>
-              <p className="text-xl font-bold text-white">
+              <p className="text-xl font-bold text-foreground">
                 {formatAmount(stats?.totalBankBalance || "0")}
               </p>
             </CardContent>
@@ -202,7 +202,7 @@ export default function Dashboard() {
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card className="glass-card border-none bg-card/40">
+          <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle>Revenue vs Expenses</CardTitle>
             </CardHeader>
@@ -236,7 +236,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="glass-card border-none bg-card/40">
+          <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle>Expense Breakdown</CardTitle>
             </CardHeader>
@@ -277,26 +277,27 @@ export default function Dashboard() {
         </div>
 
         {/* Activity Log */}
-        <Card className="glass-card border-none bg-card/40">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3 max-h-[300px] overflow-y-auto">
               {activityLog?.slice(0, 10).map((log: any) => (
-                <div key={log.id} className="flex items-center gap-4 rounded-lg bg-white/5 p-3 hover:bg-white/10 transition-colors">
+                <div key={log.id} className="flex items-center gap-4 rounded-lg bg-muted/50 p-3 hover:bg-muted transition-colors">
                   <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                    log.action === 'sold' ? 'bg-emerald-500/20 text-emerald-400' :
-                    log.action === 'bought' ? 'bg-blue-500/20 text-blue-400' :
-                    log.action === 'created' ? 'bg-purple-500/20 text-purple-400' :
-                    'bg-gray-500/20 text-gray-400'
+                    log.action === 'sold' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
+                    log.action === 'bought' ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400' :
+                    log.action === 'created' ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400' :
+                    log.action === 'payout_received' ? 'bg-green-500/20 text-green-600 dark:text-green-400' :
+                    'bg-gray-500/20 text-gray-600 dark:text-gray-400'
                   }`}>
                     {log.action === 'sold' ? <TrendingUp className="h-5 w-5" /> :
                      log.action === 'bought' ? <Package className="h-5 w-5" /> :
                      <DollarSign className="h-5 w-5" />}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-white">{log.details}</p>
+                    <p className="text-sm font-medium text-foreground">{log.details}</p>
                     <p className="text-xs text-muted-foreground">{format(new Date(log.createdAt), 'MMM d, yyyy HH:mm')}</p>
                   </div>
                 </div>
@@ -313,19 +314,19 @@ export default function Dashboard() {
 
 function StatCard({ title, value, icon: Icon, trend, color, alert }: any) {
   return (
-    <Card className="glass-card border-none bg-card/40 hover:-translate-y-1 transition-transform duration-300">
+    <Card className="bg-card border-border hover:-translate-y-1 transition-transform duration-300">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div className={`p-2 rounded-lg bg-white/5 ${color}`}>
+          <div className={`p-2 rounded-lg bg-muted ${color}`}>
             <Icon className="h-6 w-6" />
           </div>
           {alert && (
-            <AlertTriangle className="h-5 w-5 text-yellow-400 animate-pulse" />
+            <AlertTriangle className="h-5 w-5 text-yellow-500 dark:text-yellow-400 animate-pulse" />
           )}
         </div>
         <div className="mt-4">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <h3 className="text-2xl font-bold mt-1 text-white">{value}</h3>
+          <h3 className="text-2xl font-bold mt-1 text-foreground">{value}</h3>
           <span className="text-xs font-medium text-muted-foreground mt-1 block">{trend}</span>
         </div>
       </CardContent>

@@ -625,9 +625,65 @@ export async function registerRoutes(
   });
 
   app.delete(api.attachments.delete.path, async (req, res) => {
-    const id = parseInt(req.params.id);
-    await storage.deleteAttachment(id);
-    res.status(204).send();
+    try {
+      const id = parseInt(req.params.id);
+      // Get the attachment to find its filename
+      const allAttachments = await storage.getAttachments();
+      const attachment = allAttachments.find(a => a.id === id);
+      
+      // Delete file from disk if exists
+      if (attachment) {
+        const filePath = path.join(process.cwd(), 'uploads', attachment.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      
+      await storage.deleteAttachment(id);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete file" });
+    }
+  });
+
+  // Rename folder (update all files in folder)
+  app.put('/api/folders/:folderName', isAuthenticated, async (req, res) => {
+    try {
+      const oldName = req.params.folderName;
+      const { newName } = req.body;
+      if (!newName) {
+        return res.status(400).json({ message: "New folder name is required" });
+      }
+      const sanitized = newName.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+      await storage.renameFolder(oldName, sanitized);
+      res.json({ success: true, newName: sanitized });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to rename folder" });
+    }
+  });
+
+  // Delete folder and all files in it
+  app.delete('/api/folders/:folderName', isAuthenticated, async (req, res) => {
+    try {
+      const folderName = req.params.folderName;
+      // Get all files in the folder to delete from disk
+      const allAttachments = await storage.getAttachments();
+      const folderFiles = allAttachments.filter(a => a.folder === folderName);
+      
+      // Delete files from disk
+      for (const file of folderFiles) {
+        const filePath = path.join(process.cwd(), 'uploads', file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      
+      // Delete from database
+      await storage.deleteFolder(folderName);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete folder" });
+    }
   });
 
   // Serve uploaded files

@@ -784,40 +784,40 @@ function BuyProductDialog({ item, onClose }: { item: any; onClose: () => void })
 
   return (
     <Dialog open={!!item} onOpenChange={() => onClose()}>
-      <DialogContent className="bg-card border-white/10 text-white sm:max-w-[500px]">
+      <DialogContent className="bg-card border-border sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Purchase: {item.name}</DialogTitle>
+          <DialogTitle className="text-foreground">Purchase: {item.name}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Quantity *</label>
-              <Input type="number" min="1" className="bg-black/20 border-white/10" {...form.register("quantity")} data-testid="input-buy-quantity" />
+              <label className="text-sm font-medium text-foreground">Quantity *</label>
+              <Input type="number" min="1" className="bg-background border-border text-foreground" {...form.register("quantity")} data-testid="input-buy-quantity" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Unit Cost ({item.currency || 'USD'}) *</label>
-              <Input type="number" step="0.01" className="bg-black/20 border-white/10" {...form.register("unitCost")} data-testid="input-buy-cost" />
+              <label className="text-sm font-medium text-foreground">Unit Cost ({item.currency || 'USD'}) *</label>
+              <Input type="number" step="0.01" className="bg-background border-border text-foreground" {...form.register("unitCost")} data-testid="input-buy-cost" />
             </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Shipping Cost</label>
-              <Input type="number" step="0.01" className="bg-black/20 border-white/10" {...form.register("shippingCost")} data-testid="input-buy-shipping" />
+              <label className="text-sm font-medium text-foreground">Shipping Cost</label>
+              <Input type="number" step="0.01" className="bg-background border-border text-foreground" {...form.register("shippingCost")} data-testid="input-buy-shipping" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Purchase Date</label>
-              <Input type="date" className="bg-black/20 border-white/10" {...form.register("purchaseDate")} data-testid="input-buy-date" />
+              <label className="text-sm font-medium text-foreground">Purchase Date</label>
+              <Input type="date" className="bg-background border-border text-foreground" {...form.register("purchaseDate")} data-testid="input-buy-date" />
             </div>
           </div>
           
           <div className="space-y-2">
-            <label className="text-sm font-medium">Supplier Order ID</label>
-            <Input className="bg-black/20 border-white/10" {...form.register("supplierOrderId")} data-testid="input-buy-orderid" />
+            <label className="text-sm font-medium text-foreground">Supplier Order ID</label>
+            <Input className="bg-background border-border text-foreground" {...form.register("supplierOrderId")} data-testid="input-buy-orderid" />
           </div>
           
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="border-white/10">Cancel</Button>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={buyProduct.isPending} className="bg-emerald-600 hover:bg-emerald-700" data-testid="button-confirm-buy">
               {buyProduct.isPending ? "Purchasing..." : "Confirm Purchase"}
             </Button>

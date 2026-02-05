@@ -83,12 +83,16 @@ The application is fully functional with:
 
 ### Tasks (/tasks)
 - Kanban board with drag-and-drop
-- Columns: To Do, In Progress, Done
+- Columns: Open, Planned, In Progress, Done
 - Due dates and timestamps
+- Task assignment with user avatars displayed on cards
+- Priority labels and task labels
 
 ### Files (/files)
 - Upload files with folder organization
 - Folders: General, Invoices, Products, Receipts
+- Custom folder creation
+- Folder rename and delete functionality (custom folders only)
 - Filter by folder
 
 ## API Endpoints
@@ -103,6 +107,7 @@ The application is fully functional with:
 - `GET/POST/DELETE /api/expenses` - Expense management
 - `GET/POST/PUT/DELETE /api/tasks` - Task management
 - `GET/POST/DELETE /api/attachments` - File management
+- `PUT/DELETE /api/folders/:folderName` - Folder rename/delete
 - `GET /api/activity-log` - Activity history
 
 ## Environment Variables
