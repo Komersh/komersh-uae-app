@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 // Pages
 import Dashboard from "@/pages/Dashboard";
@@ -13,6 +14,7 @@ import Financials from "@/pages/Financials";
 import Products from "@/pages/Products";
 import Tasks from "@/pages/Tasks";
 import Files from "@/pages/Files";
+import Users from "@/pages/Users";
 import Login from "@/pages/Login";
 
 function Router() {
@@ -37,6 +39,7 @@ function Router() {
       <Route path="/products" component={Products} />
       <Route path="/tasks" component={Tasks} />
       <Route path="/files" component={Files} />
+      <Route path="/users" component={Users} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -44,12 +47,14 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

@@ -14,13 +14,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    return null; // Will redirect via auth hook in component logic or show login page
+    return null;
   }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-black/20 p-8">
+      <main className="flex-1 overflow-y-auto bg-muted/30 p-8">
         <div className="mx-auto max-w-7xl animate-in fade-in duration-500">
           {children}
         </div>

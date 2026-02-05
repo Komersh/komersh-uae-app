@@ -387,6 +387,43 @@ export const api = {
       },
     },
   },
+
+  // === INVITATIONS ===
+  invitations: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/invitations',
+      responses: {
+        200: z.array(z.object({
+          id: z.string(),
+          email: z.string(),
+          role: z.string(),
+          invitedBy: z.string().nullable(),
+          used: z.boolean().nullable(),
+          expiresAt: z.string(),
+          createdAt: z.string().nullable(),
+        })),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/invitations',
+      input: z.object({
+        email: z.string().email(),
+        role: z.enum(['admin', 'founder', 'marketing', 'warehouse', 'viewer']),
+      }),
+      responses: {
+        201: z.object({
+          id: z.string(),
+          email: z.string(),
+          role: z.string(),
+          token: z.string(),
+          expiresAt: z.string(),
+        }),
+        400: errorSchemas.validation,
+      },
+    },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {

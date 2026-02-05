@@ -9,7 +9,7 @@ import {
   type Attachment, type InsertAttachment,
   type ActivityLog, type InsertActivityLog
 } from "@shared/schema";
-import { users, type User } from "@shared/models/auth";
+import { users, invitations, type User, type Invitation, type InsertInvitation } from "@shared/models/auth";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 
@@ -62,6 +62,10 @@ export interface IStorage {
   // Users
   getUsers(): Promise<User[]>;
   updateUserRole(id: string, role: string): Promise<void>;
+  
+  // Invitations
+  getInvitations(): Promise<Invitation[]>;
+  createInvitation(invitation: InsertInvitation): Promise<Invitation>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -213,6 +217,16 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserRole(id: string, role: string): Promise<void> {
     await db.update(users).set({ role }).where(eq(users.id, id));
+  }
+
+  // Invitations
+  async getInvitations(): Promise<Invitation[]> {
+    return await db.select().from(invitations).orderBy(desc(invitations.createdAt));
+  }
+
+  async createInvitation(invitation: InsertInvitation): Promise<Invitation> {
+    const [newInvitation] = await db.insert(invitations).values(invitation).returning();
+    return newInvitation;
   }
 }
 

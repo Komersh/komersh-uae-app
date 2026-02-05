@@ -570,6 +570,39 @@ export async function registerRoutes(
     });
   });
 
+  // === INVITATIONS ===
+  app.get(api.invitations.list.path, async (req, res) => {
+    const invitationsList = await storage.getInvitations();
+    res.json(invitationsList);
+  });
+
+  app.post(api.invitations.create.path, async (req, res) => {
+    try {
+      const input = api.invitations.create.input.parse(req.body);
+      const crypto = await import('crypto');
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      const invitation = await storage.createInvitation({
+        email: input.email,
+        role: input.role,
+        token,
+        expiresAt,
+      });
+
+      res.status(201).json(invitation);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
   // Seed initial data
   await seedDatabase();
 
