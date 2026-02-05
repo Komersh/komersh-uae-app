@@ -14,7 +14,11 @@ const navigation = [
   { name: 'Users', href: '/users', icon: Users },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
 
@@ -38,7 +42,7 @@ export function Sidebar() {
           {navigation.map((item) => {
             const isActive = location === item.href;
             return (
-              <Link key={item.name} href={item.href}>
+              <Link key={item.name} href={item.href} onClick={onNavigate}>
                 <div 
                   className={cn(
                     "group flex gap-x-3 rounded-xl p-3 text-sm font-semibold leading-6 cursor-pointer transition-all duration-200",
@@ -57,7 +61,7 @@ export function Sidebar() {
         </nav>
 
         <div className="mt-auto">
-          <Link href="/account">
+          <Link href="/account" onClick={onNavigate}>
             <div 
               className="flex items-center gap-x-4 rounded-xl bg-muted p-4 mb-4 cursor-pointer hover:bg-muted/80 transition-colors"
               data-testid="nav-account"

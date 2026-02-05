@@ -92,8 +92,13 @@ The application is fully functional with:
 - Upload files with folder organization
 - Folders: General, Invoices, Products, Receipts
 - Custom folder creation
-- Folder rename and delete functionality (custom folders only)
+- Folder rename and delete functionality (ALL folders including defaults)
 - Filter by folder
+
+### Products (/products)
+- Product research and inventory management in one page
+- **Excel and PDF export** for inventory stock data
+- Multi-currency support
 
 ## API Endpoints
 - `GET /api/dashboard/stats` - Dashboard statistics
@@ -151,6 +156,9 @@ The app runs on port 5000 with `npm run dev` which starts both the Express backe
 - **Germany Bank account** added in EUR currency for European operations
 - Fixed sell dialog field colors to use theme-aware classes
 - Fixed apiRequest call signatures for user management operations
+- **Mobile responsiveness** - Added sliding sidebar with hamburger menu for mobile devices
+- **Inventory export** - Excel and PDF export for inventory stock data with formatted reports
+- **Folder management** - All folders (including defaults) can now be renamed/deleted
 
 ## Theme System
 - Light mode default with dark mode toggle

@@ -11,7 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, ShoppingCart, Package, TrendingUp, AlertTriangle, Search, ExternalLink, DollarSign, Upload, Image, Edit, X, Check, Star } from "lucide-react";
+import { Plus, Trash2, ShoppingCart, Package, TrendingUp, AlertTriangle, Search, ExternalLink, DollarSign, Upload, Image, Edit, X, Check, Star, Download, FileSpreadsheet, FileText } from "lucide-react";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -95,6 +98,71 @@ export default function Products() {
 
   const formatAmount = (value: number) => {
     return `${getCurrencySymbol(currency)}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const exportInventoryToExcel = () => {
+    if (!inventory?.length) {
+      toast({ title: "No Data", description: "No inventory items to export.", variant: "destructive" });
+      return;
+    }
+    const data = inventory.map((item: any) => {
+      const itemCurrency = (item.currency || "USD") as Currency;
+      const unitCostConverted = convertCurrency(parseFloat(item.unitCost || 0), itemCurrency, currency);
+      const totalCostConverted = convertCurrency(parseFloat(item.totalCost || 0), itemCurrency, currency);
+      return {
+        Name: item.name,
+        Quantity: item.quantity,
+        Available: item.quantityAvailable,
+        [`Unit Cost (${currency})`]: unitCostConverted.toFixed(2),
+        [`Total Cost (${currency})`]: totalCostConverted.toFixed(2),
+        Status: item.status,
+        Location: item.warehouseLocation || "-",
+        "Purchase Date": item.purchaseDate ? format(new Date(item.purchaseDate), 'MMM dd, yyyy') : "-",
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+    XLSX.writeFile(wb, `inventory_stock_${currency}.xlsx`);
+    toast({ title: "Exported", description: `Inventory exported in ${currency}` });
+  };
+
+  const exportInventoryToPDF = () => {
+    if (!inventory?.length) {
+      toast({ title: "No Data", description: "No inventory items to export.", variant: "destructive" });
+      return;
+    }
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Inventory Stock Report", 14, 22);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')} | Currency: ${currency}`, 14, 30);
+    
+    const tableData = inventory.map((item: any) => {
+      const itemCurrency = (item.currency || "USD") as Currency;
+      const unitCostConverted = convertCurrency(parseFloat(item.unitCost || 0), itemCurrency, currency);
+      const totalCostConverted = convertCurrency(parseFloat(item.totalCost || 0), itemCurrency, currency);
+      return [
+        item.name,
+        item.quantity,
+        item.quantityAvailable,
+        `${getCurrencySymbol(currency)}${unitCostConverted.toFixed(2)}`,
+        `${getCurrencySymbol(currency)}${totalCostConverted.toFixed(2)}`,
+        item.status,
+        item.warehouseLocation || "-",
+      ];
+    });
+    
+    (doc as any).autoTable({
+      head: [["Name", "Qty", "Available", `Unit Cost (${currency})`, `Total Cost (${currency})`, "Status", "Location"]],
+      body: tableData,
+      startY: 38,
+      theme: "striped",
+      headStyles: { fillColor: [184, 69, 210] },
+    });
+    
+    doc.save(`inventory_stock_${currency}.pdf`);
+    toast({ title: "Exported", description: `Inventory exported in ${currency}` });
   };
 
   const filteredPotentialProducts = potentialProducts?.filter((p: any) => 
@@ -343,8 +411,16 @@ export default function Products() {
 
         {activeTab === "inventory" && (
             <Card className="glass-card bg-card/40 border-none">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
                 <CardTitle>Inventory Stock</CardTitle>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={exportInventoryToExcel} data-testid="button-export-inventory-excel">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportInventoryToPDF} data-testid="button-export-inventory-pdf">
+                    <FileText className="h-4 w-4 mr-2" /> PDF
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border border-white/10 overflow-hidden">
