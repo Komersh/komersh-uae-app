@@ -34,6 +34,7 @@ export interface IStorage {
   getSalesOrders(): Promise<SalesOrder[]>;
   createSalesOrder(order: InsertSalesOrder): Promise<SalesOrder>;
   updateSalesOrder(id: number, order: Partial<InsertSalesOrder>): Promise<SalesOrder>;
+  deleteSalesOrder(id: number): Promise<void>;
 
   // Bank Accounts
   getBankAccounts(): Promise<BankAccount[]>;
@@ -150,6 +151,10 @@ export class DatabaseStorage implements IStorage {
   async updateSalesOrder(id: number, updates: Partial<InsertSalesOrder>): Promise<SalesOrder> {
     const [updated] = await db.update(salesOrders).set(updates).where(eq(salesOrders.id, id)).returning();
     return updated;
+  }
+
+  async deleteSalesOrder(id: number): Promise<void> {
+    await db.delete(salesOrders).where(eq(salesOrders.id, id));
   }
 
   // Bank Accounts

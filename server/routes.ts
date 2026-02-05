@@ -294,6 +294,21 @@ export async function registerRoutes(
     }
   });
 
+  app.delete(api.salesOrders.delete.path, isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUserId = req.user?.claims?.sub;
+      const currentUser = await storage.getUsers().then(users => users.find(u => u.id === currentUserId));
+      if (!currentUser || !['admin', 'founder'].includes(currentUser.role || '')) {
+        return res.status(403).json({ message: "Only admins and founders can delete sales orders" });
+      }
+      const id = parseInt(req.params.id);
+      await storage.deleteSalesOrder(id);
+      res.status(204).send();
+    } catch (err) {
+      throw err;
+    }
+  });
+
   // === BANK ACCOUNTS ===
   app.get(api.bankAccounts.list.path, async (req, res) => {
     const accounts = await storage.getBankAccounts();
@@ -620,11 +635,22 @@ export async function registerRoutes(
     const monthlyExpensesTotal = monthlyExpensesList.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
     const monthlyProfit = monthlyOrders.reduce((sum, order) => sum + parseFloat(order.profit), 0) - monthlyExpensesTotal;
 
-    const lowStockCount = inventoryItems.filter(item => (item.quantityAvailable || 0) <= 5 && item.status !== 'sold_out').length;
+    const lowStockCount = inventoryItems.filter(item => (item.quantityAvailable || 0) < 10 && item.status !== 'sold_out').length;
     const pendingPayouts = salesOrdersList
       .filter(order => order.payoutStatus === 'pending')
       .reduce((sum, order) => sum + parseFloat(order.netRevenue), 0);
+    const receivedPayouts = salesOrdersList
+      .filter(order => order.payoutStatus === 'received')
+      .reduce((sum, order) => sum + parseFloat(order.netRevenue), 0);
     const totalBankBalance = bankAccountsList.reduce((sum, acc) => sum + parseFloat(acc.balance), 0);
+    
+    // Counts
+    const totalProductsResearching = await storage.getPotentialProducts().then(p => p.filter(pr => pr.status === 'researching').length);
+    const totalProductsReadyToBuy = await storage.getPotentialProducts().then(p => p.filter(pr => pr.status === 'ready_to_buy').length);
+    const totalSalesOrders = salesOrdersList.length;
+    const pendingSalesCount = salesOrdersList.filter(o => o.payoutStatus === 'pending').length;
+    const receivedSalesCount = salesOrdersList.filter(o => o.payoutStatus === 'received').length;
+    const totalUnitsInStock = inventoryItems.reduce((sum, item) => sum + (item.quantityAvailable || 0), 0);
 
     res.json({
       totalInventoryValue: totalInventoryValue.toFixed(2),
@@ -637,7 +663,14 @@ export async function registerRoutes(
       inventoryCount: inventoryItems.length,
       lowStockCount,
       pendingPayouts: pendingPayouts.toFixed(2),
+      receivedPayouts: receivedPayouts.toFixed(2),
       totalBankBalance: totalBankBalance.toFixed(2),
+      totalProductsResearching,
+      totalProductsReadyToBuy,
+      totalSalesOrders,
+      pendingSalesCount,
+      receivedSalesCount,
+      totalUnitsInStock,
     });
   });
 

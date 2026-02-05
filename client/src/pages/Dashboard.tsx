@@ -122,10 +122,50 @@ export default function Dashboard() {
             title="Inventory Items" 
             value={stats?.inventoryCount?.toString() || "0"}
             icon={Package}
-            trend={stats?.lowStockCount ? `${stats.lowStockCount} low stock` : "All stocked"}
+            trend={stats?.lowStockCount ? `${stats.lowStockCount} low stock (< 10 units)` : "All stocked"}
             color="text-blue-400"
             alert={stats?.lowStockCount > 0}
           />
+        </div>
+
+        {/* Secondary Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <Card className="bg-card/40">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{stats?.totalSalesOrders || 0}</p>
+              <p className="text-xs text-muted-foreground">Total Sales</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card/40">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-yellow-500">{stats?.pendingSalesCount || 0}</p>
+              <p className="text-xs text-muted-foreground">Pending Payouts</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card/40">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-emerald-500">{stats?.receivedSalesCount || 0}</p>
+              <p className="text-xs text-muted-foreground">Received Payouts</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card/40">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{stats?.totalUnitsInStock || 0}</p>
+              <p className="text-xs text-muted-foreground">Units in Stock</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card/40">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-orange-500">{stats?.totalProductsResearching || 0}</p>
+              <p className="text-xs text-muted-foreground">Researching</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card/40">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-primary">{stats?.totalProductsReadyToBuy || 0}</p>
+              <p className="text-xs text-muted-foreground">Ready to Buy</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Bank Accounts */}

@@ -164,6 +164,14 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/sales-orders/:id',
+      responses: {
+        204: z.object({}),
+        404: errorSchemas.notFound,
+      },
+    },
   },
 
   // === BANK ACCOUNTS ===

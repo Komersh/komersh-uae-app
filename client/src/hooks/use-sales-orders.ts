@@ -33,3 +33,24 @@ export function useUpdateSalesOrder() {
     },
   });
 }
+
+export function useDeleteSalesOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.salesOrders.delete.path, { id });
+      const res = await fetch(url, {
+        method: api.salesOrders.delete.method,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to delete sales order");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.salesOrders.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.dashboard.stats.path] });
+    },
+  });
+}

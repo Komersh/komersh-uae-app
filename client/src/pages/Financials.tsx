@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/ui/Layout";
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from "@/hooks/use-expenses";
-import { useSalesOrders, useUpdateSalesOrder } from "@/hooks/use-sales-orders";
+import { useSalesOrders, useUpdateSalesOrder, useDeleteSalesOrder } from "@/hooks/use-sales-orders";
+import { useAuth } from "@/hooks/use-auth";
 import { useBankAccounts, useAdjustBankBalance } from "@/hooks/use-bank-accounts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -50,11 +52,14 @@ const getMonthOptions = () => {
 
 export default function Financials() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { data: expenses, isLoading } = useExpenses();
   const { data: salesOrders } = useSalesOrders();
   const { data: bankAccounts } = useBankAccounts();
   const deleteExpense = useDeleteExpense();
   const updateSalesOrder = useUpdateSalesOrder();
+  const deleteSalesOrder = useDeleteSalesOrder();
+  const isAdmin = user?.role === 'admin' || user?.role === 'founder';
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editExpense, setEditExpense] = useState<any>(null);
   const [search, setSearch] = useState("");
@@ -161,6 +166,17 @@ export default function Financials() {
       },
       onError: () => {
         toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
+      }
+    });
+  };
+
+  const handleDeleteSalesOrder = (orderId: number) => {
+    deleteSalesOrder.mutate(orderId, {
+      onSuccess: () => {
+        toast({ title: "Sales Order Deleted", description: "The sales order has been removed." });
+      },
+      onError: (err: any) => {
+        toast({ title: "Error", description: err.message || "Failed to delete sales order.", variant: "destructive" });
       }
     });
   };
@@ -532,12 +548,13 @@ export default function Financials() {
                         <TableHead className="text-right text-foreground">COGS</TableHead>
                         <TableHead className="text-right text-foreground">Profit</TableHead>
                         <TableHead className="text-foreground">Status</TableHead>
+                        {isAdmin && <TableHead className="text-foreground">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredSalesOrders.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No sales yet. Sell products from the Products page.</TableCell>
+                          <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8 text-muted-foreground">No sales yet. Sell products from the Products page.</TableCell>
                         </TableRow>
                       ) : (
                         filteredSalesOrders.map((order: any) => (
@@ -580,6 +597,34 @@ export default function Financials() {
                                 </SelectContent>
                               </Select>
                             </TableCell>
+                            {isAdmin && (
+                              <TableCell>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" data-testid={`button-delete-order-${order.id}`}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent className="bg-card border-border">
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Sales Order</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete this sales order? This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => handleDeleteSalesOrder(order.id)}
+                                        className="bg-destructive text-destructive-foreground"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))
                       )}
