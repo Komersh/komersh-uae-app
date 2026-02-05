@@ -76,6 +76,24 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // Upload image for potential product
+  app.post('/api/potential-products/:id/image', upload.single('image'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (!req.file) {
+        return res.status(400).json({ message: "No image uploaded" });
+      }
+      const imageUrl = `/uploads/${req.file.filename}`;
+      const product = await storage.updatePotentialProduct(id, { imageUrl });
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      res.json(product);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to upload image" });
+    }
+  });
+
   // Buy a potential product -> moves to inventory
   app.post(api.potentialProducts.buy.path, async (req, res) => {
     try {

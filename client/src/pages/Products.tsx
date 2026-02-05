@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/ui/Layout";
-import { usePotentialProducts, useCreatePotentialProduct, useDeletePotentialProduct, useBuyPotentialProduct } from "@/hooks/use-potential-products";
+import { usePotentialProducts, useCreatePotentialProduct, useUpdatePotentialProduct, useDeletePotentialProduct, useBuyPotentialProduct } from "@/hooks/use-potential-products";
 import { useInventory, useSellInventory } from "@/hooks/use-inventory";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,8 @@ export default function Products() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [buyItem, setBuyItem] = useState<any>(null);
   const [sellItem, setSellItem] = useState<any>(null);
+  const [editProduct, setEditProduct] = useState<any>(null);
+  const [editInventory, setEditInventory] = useState<any>(null);
 
   const filteredPotentialProducts = potentialProducts?.filter((p: any) => 
     !search || p.name?.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase())
@@ -185,13 +188,22 @@ export default function Products() {
                         filteredPotentialProducts.map((item: any) => (
                           <TableRow key={item.id} className="border-border hover:bg-muted/50 transition-colors group">
                             <TableCell>
-                              <div className="flex flex-col">
-                                <span className="text-foreground font-medium">{item.name}</span>
-                                {item.supplierLink && (
-                                  <a href={item.supplierLink} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
-                                    Supplier <ExternalLink className="h-3 w-3" />
-                                  </a>
+                              <div className="flex items-center gap-3">
+                                {item.imageUrl ? (
+                                  <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded-md object-cover border border-border" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-md bg-muted/50 flex items-center justify-center border border-border">
+                                    <Image className="h-4 w-4 text-muted-foreground" />
+                                  </div>
                                 )}
+                                <div className="flex flex-col">
+                                  <span className="text-foreground font-medium">{item.name}</span>
+                                  {item.supplierLink && (
+                                    <a href={item.supplierLink} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                                      Supplier <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell className="font-mono text-muted-foreground">{item.sku || '-'}</TableCell>
@@ -216,6 +228,15 @@ export default function Products() {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8"
+                                  onClick={() => setEditProduct(item)}
+                                  data-testid={`button-edit-product-${item.id}`}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
@@ -277,7 +298,16 @@ export default function Products() {
                           return (
                             <TableRow key={item.id} className={`border-border hover:bg-muted/50 transition-colors group ${isLowStock ? 'bg-yellow-500/5' : ''}`}>
                               <TableCell>
-                                <span className="text-foreground font-medium">{item.name}</span>
+                                <div className="flex items-center gap-3">
+                                  {item.imageUrl ? (
+                                    <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded-md object-cover border border-border" />
+                                  ) : (
+                                    <div className="w-10 h-10 rounded-md bg-muted/50 flex items-center justify-center border border-border">
+                                      <Package className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                  <span className="text-foreground font-medium">{item.name}</span>
+                                </div>
                               </TableCell>
                               <TableCell className="text-center font-bold text-foreground">{quantityAvailable}</TableCell>
                               <TableCell className="text-center text-emerald-600 dark:text-emerald-400 font-medium">{quantitySold}</TableCell>
@@ -299,15 +329,26 @@ export default function Products() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                <Button 
-                                  size="sm"
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity bg-primary hover:bg-primary/90"
-                                  onClick={() => setSellItem(item)}
-                                  disabled={quantityAvailable === 0}
-                                  data-testid={`button-sell-${item.id}`}
-                                >
-                                  <DollarSign className="h-4 w-4 mr-1" /> Sell
-                                </Button>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button 
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => setEditInventory(item)}
+                                    data-testid={`button-edit-inventory-${item.id}`}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    size="sm"
+                                    className="bg-primary hover:bg-primary/90"
+                                    onClick={() => setSellItem(item)}
+                                    disabled={quantityAvailable === 0}
+                                    data-testid={`button-sell-${item.id}`}
+                                  >
+                                    <DollarSign className="h-4 w-4 mr-1" /> Sell
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
@@ -323,6 +364,8 @@ export default function Products() {
 
         <BuyProductDialog item={buyItem} onClose={() => setBuyItem(null)} />
         <SellProductDialog item={sellItem} onClose={() => setSellItem(null)} />
+        <EditProductDialog item={editProduct} onClose={() => setEditProduct(null)} />
+        <EditInventoryDialog item={editInventory} onClose={() => setEditInventory(null)} />
       </div>
     </Layout>
   );
@@ -667,6 +710,332 @@ function SellProductDialog({ item, onClose }: { item: any; onClose: () => void }
             <Button type="button" variant="outline" onClick={onClose} className="border-white/10">Cancel</Button>
             <Button type="submit" disabled={sellProduct.isPending} className="bg-primary hover:bg-primary/90" data-testid="button-confirm-sell">
               {sellProduct.isPending ? "Processing..." : "Confirm Sale"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const editProductSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  supplierLink: z.string().optional(),
+  supplierName: z.string().optional(),
+  marketplace: z.string().optional(),
+  costPerUnit: z.coerce.number().min(0),
+  targetSellingPrice: z.coerce.number().optional(),
+  notes: z.string().optional(),
+  currency: z.string(),
+  status: z.string(),
+});
+
+function EditProductDialog({ item, onClose }: { item: any; onClose: () => void }) {
+  const { toast } = useToast();
+  const updateProduct = useUpdatePotentialProduct();
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  
+  const form = useForm<z.infer<typeof editProductSchema>>({
+    resolver: zodResolver(editProductSchema),
+    defaultValues: {
+      name: item?.name || "",
+      supplierLink: item?.supplierLink || "",
+      supplierName: item?.supplierName || "",
+      marketplace: item?.marketplace || "",
+      costPerUnit: item?.costPerUnit ? parseFloat(item.costPerUnit) : 0,
+      targetSellingPrice: item?.targetSellingPrice ? parseFloat(item.targetSellingPrice) : undefined,
+      notes: item?.notes || "",
+      currency: item?.currency || "USD",
+      status: item?.status || "researching",
+    }
+  });
+
+  // Reset form when item changes
+  useEffect(() => {
+    if (item) {
+      form.reset({
+        name: item.name || "",
+        supplierLink: item.supplierLink || "",
+        supplierName: item.supplierName || "",
+        marketplace: item.marketplace || "",
+        costPerUnit: item.costPerUnit ? parseFloat(item.costPerUnit) : 0,
+        targetSellingPrice: item.targetSellingPrice ? parseFloat(item.targetSellingPrice) : undefined,
+        notes: item.notes || "",
+        currency: item.currency || "USD",
+        status: item.status || "researching",
+      });
+      setImagePreview(item.imageUrl || null);
+      setImageFile(null);
+    }
+  }, [item?.id]);
+
+  if (!item) return null;
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImage = async () => {
+    if (!imageFile || !item) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', imageFile);
+      const res = await fetch(`/api/potential-products/${item.id}/image`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      toast({ title: "Image Uploaded", description: "Product image updated." });
+      setImageFile(null);
+    } catch {
+      toast({ title: "Error", description: "Failed to upload image.", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onSubmit = async (data: z.infer<typeof editProductSchema>) => {
+    if (imageFile) {
+      await uploadImage();
+    }
+    updateProduct.mutate({
+      id: item.id,
+      name: data.name,
+      supplierLink: data.supplierLink,
+      supplierName: data.supplierName,
+      marketplace: data.marketplace,
+      costPerUnit: data.costPerUnit.toString(),
+      targetSellingPrice: data.targetSellingPrice?.toString(),
+      notes: data.notes,
+      currency: data.currency,
+      status: data.status,
+    }, {
+      onSuccess: () => {
+        toast({ title: "Product Updated", description: "Product details saved." });
+        onClose();
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to update product.", variant: "destructive" });
+      }
+    });
+  };
+
+  return (
+    <Dialog open={!!item} onOpenChange={() => onClose()}>
+      <DialogContent className="bg-card border-border sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Product: {item.name}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Product Image</label>
+            <div className="flex items-center gap-4">
+              {(imagePreview || item.imageUrl) && (
+                <img 
+                  src={imagePreview || item.imageUrl} 
+                  alt="Product" 
+                  className="w-20 h-20 rounded-md object-cover border border-border"
+                />
+              )}
+              <div className="flex-1">
+                <Input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleImageChange}
+                  className="bg-background border-border"
+                  data-testid="input-product-image"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Upload an image for this product</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Name *</label>
+              <Input className="bg-background border-border" {...form.register("name")} data-testid="input-edit-name" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Supplier Name</label>
+              <Input className="bg-background border-border" {...form.register("supplierName")} data-testid="input-edit-supplier" />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Supplier Link</label>
+            <Input className="bg-background border-border" {...form.register("supplierLink")} data-testid="input-edit-link" />
+          </div>
+          
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status</label>
+              <Select onValueChange={(val) => form.setValue("status", val)} defaultValue={form.getValues("status")}>
+                <SelectTrigger className="bg-background border-border" data-testid="select-edit-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="researching">Researching</SelectItem>
+                  <SelectItem value="ready_to_buy">Ready to Buy</SelectItem>
+                  <SelectItem value="bought">Bought</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Marketplace</label>
+              <Input className="bg-background border-border" {...form.register("marketplace")} data-testid="input-edit-marketplace" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Currency</label>
+              <Select onValueChange={(val) => form.setValue("currency", val)} defaultValue={form.getValues("currency")}>
+                <SelectTrigger className="bg-background border-border" data-testid="select-edit-currency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {CURRENCIES.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Cost Per Unit</label>
+              <Input type="number" step="0.01" className="bg-background border-border" {...form.register("costPerUnit")} data-testid="input-edit-cost" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Target Selling Price</label>
+              <Input type="number" step="0.01" className="bg-background border-border" {...form.register("targetSellingPrice")} data-testid="input-edit-target" />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Notes</label>
+            <Textarea className="bg-background border-border" {...form.register("notes")} data-testid="input-edit-notes" />
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={updateProduct.isPending || uploading} data-testid="button-save-product">
+              {updateProduct.isPending || uploading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const editInventorySchema = z.object({
+  warehouseLocation: z.string().optional(),
+  trackingNumber: z.string().optional(),
+  notes: z.string().optional(),
+  status: z.string(),
+});
+
+function EditInventoryDialog({ item, onClose }: { item: any; onClose: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [updating, setUpdating] = useState(false);
+  
+  const form = useForm<z.infer<typeof editInventorySchema>>({
+    resolver: zodResolver(editInventorySchema),
+    defaultValues: {
+      warehouseLocation: item?.warehouseLocation || "",
+      trackingNumber: item?.trackingNumber || "",
+      notes: item?.notes || "",
+      status: item?.status || "ordered",
+    }
+  });
+
+  // Reset form when item changes
+  useEffect(() => {
+    if (item) {
+      form.reset({
+        warehouseLocation: item.warehouseLocation || "",
+        trackingNumber: item.trackingNumber || "",
+        notes: item.notes || "",
+        status: item.status || "ordered",
+      });
+    }
+  }, [item?.id]);
+
+  if (!item) return null;
+
+  const onSubmit = async (data: z.infer<typeof editInventorySchema>) => {
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/inventory/${item.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Update failed');
+      queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
+      toast({ title: "Inventory Updated", description: "Inventory details saved." });
+      onClose();
+    } catch {
+      toast({ title: "Error", description: "Failed to update inventory.", variant: "destructive" });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!item} onOpenChange={() => onClose()}>
+      <DialogContent className="bg-card border-border sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Edit Inventory: {item.name}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Status</label>
+            <Select onValueChange={(val) => form.setValue("status", val)} defaultValue={form.getValues("status")}>
+              <SelectTrigger className="bg-background border-border" data-testid="select-inventory-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                <SelectItem value="ordered">Ordered</SelectItem>
+                <SelectItem value="shipped">Shipped</SelectItem>
+                <SelectItem value="received">Received</SelectItem>
+                <SelectItem value="in_stock">In Stock</SelectItem>
+                <SelectItem value="sold_out">Sold Out</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Warehouse Location</label>
+            <Input className="bg-background border-border" {...form.register("warehouseLocation")} data-testid="input-inventory-location" />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Tracking Number</label>
+            <Input className="bg-background border-border" {...form.register("trackingNumber")} data-testid="input-inventory-tracking" />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Notes</label>
+            <Textarea className="bg-background border-border" {...form.register("notes")} data-testid="input-inventory-notes" />
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={updating} data-testid="button-save-inventory">
+              {updating ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </form>

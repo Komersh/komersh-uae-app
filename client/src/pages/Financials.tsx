@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/ui/Layout";
-import { useExpenses, useCreateExpense, useDeleteExpense } from "@/hooks/use-expenses";
+import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from "@/hooks/use-expenses";
 import { useSalesOrders } from "@/hooks/use-sales-orders";
 import { useBankAccounts, useAdjustBankBalance } from "@/hooks/use-bank-accounts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Search, Filter, TrendingUp, TrendingDown, Building2, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Plus, Trash2, Search, Filter, TrendingUp, TrendingDown, Building2, ArrowUpRight, ArrowDownRight, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,6 +40,7 @@ export default function Financials() {
   const { data: bankAccounts } = useBankAccounts();
   const deleteExpense = useDeleteExpense();
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editExpense, setEditExpense] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterPaidBy, setFilterPaidBy] = useState("all");
@@ -284,35 +285,46 @@ export default function Financials() {
                               {item.currency || 'USD'} {parseFloat(item.amount).toFixed(2)}
                             </TableCell>
                             <TableCell>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                    data-testid={`button-delete-expense-${item.id}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent className="bg-card border-border">
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Expense</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete "{item.description}"? This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction 
-                                      onClick={() => deleteExpense.mutate(item.id)}
-                                      className="bg-destructive text-destructive-foreground"
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8"
+                                  onClick={() => setEditExpense(item)}
+                                  data-testid={`button-edit-expense-${item.id}`}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-8 w-8"
+                                      data-testid={`button-delete-expense-${item.id}`}
                                     >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent className="bg-card border-border">
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete "{item.description}"? This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => deleteExpense.mutate(item.id)}
+                                        className="bg-destructive text-destructive-foreground"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -460,6 +472,7 @@ export default function Financials() {
             </div>
           </TabsContent>
         </Tabs>
+        <EditExpenseDialog item={editExpense} onClose={() => setEditExpense(null)} bankAccounts={bankAccounts || []} />
       </div>
     </Layout>
   );
@@ -668,6 +681,174 @@ function AddExpenseDialog({ open, onOpenChange, bankAccounts }: { open: boolean,
           <div className="flex justify-end pt-4">
             <Button type="submit" disabled={createExpense.isPending} data-testid="button-submit-expense">
               {createExpense.isPending ? "Adding..." : "Add Expense"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const editExpenseSchema = z.object({
+  category: z.string().min(1, "Category is required"),
+  amount: z.coerce.number().min(0.01, "Amount is required"),
+  currency: z.string().default("USD"),
+  description: z.string().optional(),
+  date: z.string().min(1, "Date is required"),
+  paidBy: z.string().optional(),
+  paymentMethod: z.string().optional(),
+  bankAccountId: z.number().optional(),
+});
+
+function EditExpenseDialog({ item, onClose, bankAccounts }: { item: any; onClose: () => void; bankAccounts: any[] }) {
+  const { toast } = useToast();
+  const updateExpense = useUpdateExpense();
+  
+  const form = useForm<z.infer<typeof editExpenseSchema>>({
+    resolver: zodResolver(editExpenseSchema),
+    defaultValues: {
+      category: item?.category || "",
+      amount: item?.amount ? parseFloat(item.amount) : 0,
+      currency: item?.currency || "USD",
+      description: item?.description || "",
+      date: item?.date || "",
+      paidBy: item?.paidBy || "",
+      paymentMethod: item?.paymentMethod || "",
+      bankAccountId: item?.bankAccountId,
+    }
+  });
+
+  // Reset form when item changes
+  useEffect(() => {
+    if (item) {
+      form.reset({
+        category: item.category || "",
+        amount: item.amount ? parseFloat(item.amount) : 0,
+        currency: item.currency || "USD",
+        description: item.description || "",
+        date: item.date || "",
+        paidBy: item.paidBy || "",
+        paymentMethod: item.paymentMethod || "",
+        bankAccountId: item.bankAccountId,
+      });
+    }
+  }, [item?.id]);
+
+  if (!item) return null;
+
+  const onSubmit = (data: z.infer<typeof editExpenseSchema>) => {
+    updateExpense.mutate({
+      id: item.id,
+      category: data.category,
+      amount: data.amount.toString(),
+      currency: data.currency,
+      description: data.description,
+      date: data.date,
+      paidBy: data.paidBy,
+      paymentMethod: data.paymentMethod,
+      bankAccountId: data.bankAccountId,
+    }, {
+      onSuccess: () => {
+        toast({ title: "Expense Updated", description: "Expense details saved." });
+        onClose();
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to update expense.", variant: "destructive" });
+      }
+    });
+  };
+
+  return (
+    <Dialog open={!!item} onOpenChange={() => onClose()}>
+      <DialogContent className="bg-card border-border sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Edit Expense</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Category *</label>
+              <Select onValueChange={(val) => form.setValue("category", val)} defaultValue={form.getValues("category")}>
+                <SelectTrigger className="bg-background border-border" data-testid="select-edit-category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {EXPENSE_CATEGORIES.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Amount *</label>
+              <Input 
+                type="number" 
+                step="0.01" 
+                className="bg-background border-border" 
+                {...form.register("amount")} 
+                data-testid="input-edit-amount"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Currency</label>
+              <Select onValueChange={(val) => form.setValue("currency", val)} defaultValue={form.getValues("currency")}>
+                <SelectTrigger className="bg-background border-border" data-testid="select-edit-currency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {CURRENCIES.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Date *</label>
+              <Input type="date" className="bg-background border-border" {...form.register("date")} data-testid="input-edit-date" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Paid By</label>
+              <Select onValueChange={(val) => form.setValue("paidBy", val)} defaultValue={form.getValues("paidBy")}>
+                <SelectTrigger className="bg-background border-border" data-testid="select-edit-paidby">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {PAID_BY_OPTIONS.map(o => (
+                    <SelectItem key={o} value={o}>{o}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Payment Method</label>
+              <Select onValueChange={(val) => form.setValue("paymentMethod", val)} defaultValue={form.getValues("paymentMethod")}>
+                <SelectTrigger className="bg-background border-border" data-testid="select-edit-method">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="Bank">Bank</SelectItem>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="Card">Card</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Description</label>
+            <Input className="bg-background border-border" {...form.register("description")} data-testid="input-edit-description" />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={updateExpense.isPending} data-testid="button-save-expense">
+              {updateExpense.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </form>

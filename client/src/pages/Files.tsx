@@ -21,10 +21,13 @@ export default function Files() {
   const { toast } = useToast();
   const [folder, setFolder] = useState("general");
   const [filterFolder, setFilterFolder] = useState("all");
-  const [customFolders, setCustomFolders] = useState<string[]>([]);
   const [newFolderName, setNewFolderName] = useState("");
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
 
+  // Extract unique folders from attachments and merge with defaults
+  const attachmentFolders = attachments?.map((a: any) => a.folder).filter(Boolean) || [];
+  const uniqueAttachmentFolders = [...new Set(attachmentFolders)] as string[];
+  const customFolders = uniqueAttachmentFolders.filter(f => !DEFAULT_FOLDERS.includes(f));
   const allFolders = [...DEFAULT_FOLDERS, ...customFolders];
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,11 +54,11 @@ export default function Files() {
       toast({ title: "Folder exists", description: "A folder with that name already exists.", variant: "destructive" });
       return;
     }
-    setCustomFolders([...customFolders, sanitized]);
+    // Just set the upload folder - the folder will appear once a file is uploaded to it
     setFolder(sanitized);
     setNewFolderName("");
     setIsCreateFolderOpen(false);
-    toast({ title: "Folder Created", description: `Created folder: ${sanitized}` });
+    toast({ title: "Ready to Upload", description: `Upload files to create folder: ${sanitized}` });
   };
 
   const filteredAttachments = filterFolder === "all" 
