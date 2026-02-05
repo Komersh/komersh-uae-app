@@ -703,6 +703,18 @@ export async function registerRoutes(
   });
 
   // === DASHBOARD STATS ===
+  // Exchange rates (base: USD)
+  const EXCHANGE_RATES: Record<string, number> = {
+    USD: 1,
+    AED: 3.67,
+    EUR: 0.92
+  };
+
+  const convertToUSD = (amount: number, currency: string): number => {
+    const rate = EXCHANGE_RATES[currency] || 1;
+    return amount / rate;
+  };
+
   app.get(api.dashboard.stats.path, async (req, res) => {
     const inventoryItems = await storage.getInventory();
     const salesOrdersList = await storage.getSalesOrders();
@@ -713,11 +725,15 @@ export async function registerRoutes(
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Calculate totals
-    const totalInventoryValue = inventoryItems.reduce((sum, item) => sum + parseFloat(item.totalCost), 0);
-    const totalRevenue = salesOrdersList.reduce((sum, order) => sum + parseFloat(order.totalRevenue), 0);
-    const totalProfit = salesOrdersList.reduce((sum, order) => sum + parseFloat(order.profit), 0);
-    const totalExpenses = expensesList.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+    // Calculate totals (converting to USD)
+    const totalInventoryValue = inventoryItems.reduce((sum, item) => 
+      sum + convertToUSD(parseFloat(item.totalCost), item.currency || 'USD'), 0);
+    const totalRevenue = salesOrdersList.reduce((sum, order) => 
+      sum + convertToUSD(parseFloat(order.totalRevenue), order.currency || 'USD'), 0);
+    const totalProfit = salesOrdersList.reduce((sum, order) => 
+      sum + convertToUSD(parseFloat(order.profit), order.currency || 'USD'), 0);
+    const totalExpenses = expensesList.reduce((sum, exp) => 
+      sum + convertToUSD(parseFloat(exp.amount), exp.currency || 'USD'), 0);
 
     // Monthly calculations
     const monthlyOrders = salesOrdersList.filter(order => {
@@ -729,18 +745,22 @@ export async function registerRoutes(
       return expDate.getMonth() === currentMonth && expDate.getFullYear() === currentYear;
     });
 
-    const monthlyRevenue = monthlyOrders.reduce((sum, order) => sum + parseFloat(order.totalRevenue), 0);
-    const monthlyExpensesTotal = monthlyExpensesList.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
-    const monthlyProfit = monthlyOrders.reduce((sum, order) => sum + parseFloat(order.profit), 0) - monthlyExpensesTotal;
+    const monthlyRevenue = monthlyOrders.reduce((sum, order) => 
+      sum + convertToUSD(parseFloat(order.totalRevenue), order.currency || 'USD'), 0);
+    const monthlyExpensesTotal = monthlyExpensesList.reduce((sum, exp) => 
+      sum + convertToUSD(parseFloat(exp.amount), exp.currency || 'USD'), 0);
+    const monthlyProfit = monthlyOrders.reduce((sum, order) => 
+      sum + convertToUSD(parseFloat(order.profit), order.currency || 'USD'), 0) - monthlyExpensesTotal;
 
     const lowStockCount = inventoryItems.filter(item => (item.quantityAvailable || 0) < 10 && item.status !== 'sold_out').length;
     const pendingPayouts = salesOrdersList
       .filter(order => order.payoutStatus === 'pending')
-      .reduce((sum, order) => sum + parseFloat(order.netRevenue), 0);
+      .reduce((sum, order) => sum + convertToUSD(parseFloat(order.netRevenue), order.currency || 'USD'), 0);
     const receivedPayouts = salesOrdersList
       .filter(order => order.payoutStatus === 'received')
-      .reduce((sum, order) => sum + parseFloat(order.netRevenue), 0);
-    const totalBankBalance = bankAccountsList.reduce((sum, acc) => sum + parseFloat(acc.balance), 0);
+      .reduce((sum, order) => sum + convertToUSD(parseFloat(order.netRevenue), order.currency || 'USD'), 0);
+    const totalBankBalance = bankAccountsList.reduce((sum, acc) => 
+      sum + convertToUSD(parseFloat(acc.balance), acc.currency || 'USD'), 0);
     
     // Counts
     const totalProductsResearching = await storage.getPotentialProducts().then(p => p.filter(pr => pr.status === 'researching').length);

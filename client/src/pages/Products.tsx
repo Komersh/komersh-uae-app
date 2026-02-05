@@ -119,9 +119,9 @@ export default function Products() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="glass-card border-none bg-card/40">
+          <Card className="bg-card border-border">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-blue-500/20 text-blue-400">
+              <div className="p-3 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400">
                 <Search className="h-5 w-5" />
               </div>
               <div>
@@ -130,9 +130,9 @@ export default function Products() {
               </div>
             </CardContent>
           </Card>
-          <Card className="glass-card border-none bg-card/40">
+          <Card className="bg-card border-border">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-emerald-500/20 text-emerald-400">
+              <div className="p-3 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                 <Package className="h-5 w-5" />
               </div>
               <div>
@@ -141,9 +141,9 @@ export default function Products() {
               </div>
             </CardContent>
           </Card>
-          <Card className="glass-card border-none bg-card/40">
+          <Card className="bg-card border-border">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-yellow-500/20 text-yellow-400">
+              <div className="p-3 rounded-lg bg-yellow-500/20 text-yellow-600 dark:text-yellow-400">
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
@@ -152,9 +152,9 @@ export default function Products() {
               </div>
             </CardContent>
           </Card>
-          <Card className="glass-card border-none bg-card/40">
+          <Card className="bg-card border-border">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-purple-500/20 text-purple-400">
+              <div className="p-3 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-400">
                 <TrendingUp className="h-5 w-5" />
               </div>
               <div>
@@ -296,10 +296,10 @@ export default function Products() {
                               <StarRating productId={item.id} rating={item.buyRating || 0} />
                             </TableCell>
                             <TableCell className="text-right font-mono text-foreground">
-                              {item.costPerUnit ? `${item.currency || 'USD'} ${parseFloat(item.costPerUnit).toFixed(2)}` : '-'}
+                              {item.costPerUnit ? `${getCurrencySymbol((item.currency || 'USD') as Currency)}${parseFloat(item.costPerUnit).toFixed(2)}` : '-'}
                             </TableCell>
                             <TableCell className="text-right font-mono text-emerald-600 dark:text-emerald-400">
-                              {item.targetSellingPrice ? `${item.currency || 'USD'} ${parseFloat(item.targetSellingPrice).toFixed(2)}` : '-'}
+                              {item.targetSellingPrice ? `${getCurrencySymbol((item.currency || 'USD') as Currency)}${parseFloat(item.targetSellingPrice).toFixed(2)}` : '-'}
                             </TableCell>
                             <TableCell>
                               {getUserName(item.createdByUserId) ? (

@@ -20,10 +20,12 @@ export default function Dashboard() {
   const { data: expenses } = useExpenses();
   const [currency, setCurrency] = useState<Currency>("USD");
 
-  const convertCurrency = (value: string | number, toCurrency: Currency) => {
+  // Convert from any currency to selected display currency
+  const convertCurrency = (value: string | number, toCurrency: Currency, fromCurrency: Currency = "USD") => {
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(numValue)) return "0.00";
-    const inUSD = numValue;
+    // First convert to USD, then to target currency
+    const inUSD = numValue / EXCHANGE_RATES[fromCurrency];
     const converted = inUSD * EXCHANGE_RATES[toCurrency];
     return converted.toFixed(2);
   };
@@ -40,7 +42,7 @@ export default function Dashboard() {
     return `${getCurrencySymbol(currency)}${Number(convertCurrency(value, currency)).toLocaleString()}`;
   };
 
-  // Prepare chart data from actual sales and expenses
+  // Prepare chart data from actual sales and expenses (with currency conversion)
   const monthlyData = [];
   const now = new Date();
   for (let i = 6; i >= 0; i--) {
@@ -55,8 +57,11 @@ export default function Dashboard() {
       return expDate.getMonth() === date.getMonth() && expDate.getFullYear() === date.getFullYear();
     }) || [];
     
-    const revenue = monthOrders.reduce((sum: number, o: any) => sum + parseFloat(o.totalRevenue || "0"), 0);
-    const expense = monthExpenses.reduce((sum: number, e: any) => sum + parseFloat(e.amount || "0"), 0);
+    // Convert each order/expense to the selected display currency
+    const revenue = monthOrders.reduce((sum: number, o: any) => 
+      sum + parseFloat(convertCurrency(o.totalRevenue || "0", currency, (o.currency || "USD") as Currency)), 0);
+    const expense = monthExpenses.reduce((sum: number, e: any) => 
+      sum + parseFloat(convertCurrency(e.amount || "0", currency, (e.currency || "USD") as Currency)), 0);
     
     monthlyData.push({
       name: monthName,
@@ -66,11 +71,12 @@ export default function Dashboard() {
     });
   }
 
-  // Expense category breakdown for pie chart
+  // Expense category breakdown for pie chart (with currency conversion)
   const expenseByCategory: Record<string, number> = {};
   expenses?.forEach((e: any) => {
     const cat = e.category || "Other";
-    expenseByCategory[cat] = (expenseByCategory[cat] || 0) + parseFloat(e.amount || "0");
+    const convertedAmount = parseFloat(convertCurrency(e.amount || "0", currency, (e.currency || "USD") as Currency));
+    expenseByCategory[cat] = (expenseByCategory[cat] || 0) + convertedAmount;
   });
   const pieData = Object.entries(expenseByCategory).map(([name, value]) => ({ name, value }));
   const COLORS = ['#8b5cf6', '#f43f5e', '#10b981', '#f59e0b', '#6366f1', '#ec4899'];
