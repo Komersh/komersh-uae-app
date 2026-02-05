@@ -1,0 +1,461 @@
+Build “Komersh UAE Internal Ops App” (Invitation-Only, Role-Based)
+Overview
+
+Build a private internal web app for Komersh UAE used by two founders (one in Germany, one in UAE) to manage the end-to-end process of:
+
+Finding potential products
+
+Buying inventory from AliExpress/other sites
+
+Tracking shipment/warehouse status
+
+Logging sales/orders (Amazon UAE, Noon, Komersh.ae, etc.)
+
+Tracking expenses, revenue, profit
+
+Managing tasks in a Kanban board with email reminders
+
+Viewing a dashboard with business health + metrics
+
+The app must be invitation-only (admin invites users by email), with role-based permissions so we can add marketing people or helpers and restrict what they can see/do.
+
+1) Authentication & Access
+Login & Invitations
+
+Users can only register if they receive an email invite from an admin.
+
+Login by email + password (or magic link optional).
+
+Admin can:
+
+Invite user (email)
+
+Assign role
+
+Enable/disable user access
+
+Roles & Permissions (RBAC)
+
+At minimum:
+
+Admin (full access)
+
+Founder/Manager (almost full access, no user management optional)
+
+Marketing (view only certain pages + add marketing expenses)
+
+Warehouse/Operations (update product statuses, view inventory)
+
+Viewer (read-only dashboards)
+
+Permissions should be modular per section:
+
+Products: view / create / edit / buy / mark sold / update status
+
+Financial: view / create expenses / edit entries
+
+Tasks: view / create / edit / move cards / delete
+
+Dashboard: view
+
+2) App Sections (Main Navigation)
+Section A: Dashboard (Home)
+
+A high-level dashboard that shows:
+
+Total inventory value (cost)
+
+Total sales revenue
+
+Total profit (overall + monthly)
+
+Expenses (monthly + breakdown)
+
+Inventory status overview (Shipped / In Warehouse / Sold)
+
+Low-stock alerts
+
+Top profitable products
+
+Tasks overview (overdue / due today / upcoming)
+
+Recent activity log (who did what)
+
+Section B: Products
+
+Products module has 2 main subsections:
+
+B1) Potential Products (Research List)
+
+A table/list to add product ideas before buying.
+
+Fields per potential product:
+
+Product name/title
+
+Supplier link (AliExpress/other)
+
+Supplier/store name
+
+Product image (upload or paste URL)
+
+Variations (color/size optional)
+
+Cost per unit (with currency)
+
+Suggested buy quantity
+
+Estimated shipping cost (optional)
+
+Target selling price (optional)
+
+Marketplace (Amazon UAE / Noon / Komersh.ae)
+
+Notes
+
+“Buy rating” 1–5 stars (or score system)
+
+Status: Researching / Ready to buy / Rejected / Bought
+
+Table needs:
+
+Search + filter + sort (rating, price, status, marketplace)
+
+Actions:
+
+Edit / Delete
+
+BUY button → opens popup/modal:
+
+Enter quantity purchased
+
+Unit price (default from cost per unit; editable)
+
+Total price auto-calculated
+
+Purchase date
+
+Optional: shipping cost, supplier order ID
+
+Confirm → moves item into “Purchased Products / Inventory” and creates an “inventory batch” record.
+
+B2) Purchased Products / Inventory Tracking
+
+Shows all products that were bought and where they are.
+
+Each inventory item needs:
+
+Product image
+
+Product name
+
+Quantity purchased (current available)
+
+Unit cost + total cost
+
+Purchase date
+
+Status tracking:
+
+Ordered
+
+Shipped
+
+In transit
+
+Arrived UAE
+
+In warehouse
+
+Listed
+
+Sold out
+
+Warehouse location (optional)
+
+Supplier order ID / tracking number (optional)
+
+Notes
+
+Actions:
+
+Update Status (dropdown)
+
+ORDER / SOLD button (when you make a sale):
+
+Popup modal:
+
+Channel: Amazon UAE / Noon / Komersh.ae / Other
+
+Quantity sold
+
+Selling price per unit (or total)
+
+Marketplace fees (optional)
+
+Shipping cost (optional)
+
+Date of sale
+
+On confirm:
+
+Reduce inventory quantity
+
+Create a financial “order/sale” record linked to this product
+
+Profit for that sale is calculated automatically
+
+Rules:
+
+Cannot sell more than available quantity
+
+When quantity hits 0 → mark “Sold out”
+
+Section C: Financial
+
+Financial module has 3 subsections:
+
+C1) Expenses (Monthly + Categories)
+
+Track every expense with date, category, and which country/account paid it.
+
+Expense fields:
+
+Date
+
+Month (auto derived)
+
+Category (Subscription / Marketing / Shipping / Warehouse / Tools / Misc)
+
+Description
+
+Amount
+
+Currency (USD/AED/EUR)
+
+Paid by (Germany / UAE / Company / Person A / Person B)
+
+Payment method (Bank / Cash / Card optional)
+
+Attachment upload (invoice/receipt optional)
+
+Views:
+
+Monthly summary cards (total expenses per month)
+
+Category breakdown
+
+Filter by date range, category, paid-by
+
+C2) Orders / Sales (Revenue)
+
+All sales records created from “ORDER / SOLD” in Products appear here.
+
+Order fields:
+
+Order ID (internal)
+
+Date
+
+Channel (Amazon UAE / Noon / Komersh.ae / Other)
+
+Product reference
+
+Quantity sold
+
+Revenue (total)
+
+Fees (optional)
+
+Shipping cost (optional)
+
+Net revenue (auto)
+
+COGS (auto from unit cost × quantity)
+
+Profit (auto)
+
+Notes
+
+Views:
+
+Total revenue, profit (monthly + overall)
+
+Filter by channel, product, date
+
+C3) “Cash / Bank / Wallet” (Suggested Best Solution)
+
+Instead of guessing “Bank”, build a simple “Cashflow / Accounts” area:
+
+Accounts: “UAE Bank”, “Germany Bank”, “Cash”, “Amazon Payouts Pending”, “Noon Payouts Pending”
+
+Every sale can be:
+
+“Pending payout” or “Received”
+
+Every expense comes from an account
+
+Dashboard shows:
+
+Current balances per account
+
+Outstanding payouts (Amazon/Noon)
+This helps you see “where our money is now” like a bank snapshot.
+
+3) Section D: Tasks (Kanban Board like Trello/Monday)
+
+Build a Kanban board with columns:
+
+Open Items
+
+Planned
+
+In Process
+
+Done
+
+Task fields:
+
+Title
+
+Description
+
+Assignee (user)
+
+Due date/time
+
+Priority (Low/Med/High)
+
+Labels (Marketing / Ops / Finance / Product)
+
+Attachments (optional)
+
+Comments/activity log
+
+Features:
+
+Drag & drop between columns
+
+Edit/delete tasks (permission-based)
+
+Email notifications:
+
+When a task is assigned
+
+Reminder before due time (configurable, e.g. 24h + 1h)
+
+Overdue notification if missed
+
+4) System-wide Requirements
+Activity Log
+
+Record important actions:
+
+Product bought, sold, status changed
+
+Expense added/edited
+
+Task created/moved/completed
+
+User invited/role changed
+
+Multi-currency Support
+
+Support USD/AED/EUR with conversion option:
+
+Store original currency
+
+Optional: store converted value using a manually set monthly rate (simple + stable)
+
+UI/UX
+
+Clean admin dashboard
+
+Tables with filter/search
+
+Modals for Buy and Sold actions
+
+Mobile-friendly (at least usable)
+
+5) Tech / Deployment (Replit)
+
+Build as a web app deployable on Replit.
+
+Suggested stack (choose one):
+Option 1 (Simple & Fast):
+
+Frontend: React + Tailwind
+
+Backend: Node.js/Express
+
+DB: PostgreSQL (or SQLite for MVP)
+
+Auth: Email invite tokens + hashed passwords (bcrypt)
+
+Email: SendGrid/Mailgun/Resend (API)
+
+Option 2 (Very clean all-in-one):
+
+Next.js (fullstack)
+
+Prisma ORM
+
+PostgreSQL
+
+NextAuth (with invite-only restriction)
+
+Email provider integration
+
+6) Data Model (Minimum Entities)
+
+Users (email, name, role, active)
+
+Roles/Permissions
+
+PotentialProducts
+
+InventoryBatches (purchased lots)
+
+InventoryStatusHistory (optional)
+
+SalesOrders (linked to inventory)
+
+Expenses
+
+Accounts (cash/bank/payout)
+
+Transactions (optional, to track money movement)
+
+Tasks
+
+TaskComments
+
+ActivityLog
+
+Attachments
+
+7) MVP First (build in phases)
+
+Phase 1 (MVP):
+
+Invite-only auth + roles
+
+Potential Products + Buy → Inventory
+
+Inventory + Sold → Sales records + quantity deduction
+
+Expenses
+
+Basic dashboard metrics
+
+Kanban tasks + due date reminders
+
+Phase 2:
+
+Accounts/cashflow + payout tracking
+
+Multi-currency conversion
+
+Advanced analytics (top sellers, ROI per product)
+
+CSV import/export
