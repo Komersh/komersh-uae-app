@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, ShoppingCart, Package, TrendingUp, AlertTriangle, Search, ExternalLink, DollarSign, Upload, Image, Edit, X, Check } from "lucide-react";
 import { format } from "date-fns";
@@ -19,7 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { CURRENCIES, type Currency } from "@shared/schema";
+import { CURRENCIES, EXCHANGE_RATES, type Currency } from "@shared/schema";
 
 const addProductSchema = z.object({
   name: z.string().min(1),
@@ -64,6 +63,28 @@ export default function Products() {
   const [sellItem, setSellItem] = useState<any>(null);
   const [editProduct, setEditProduct] = useState<any>(null);
   const [editInventory, setEditInventory] = useState<any>(null);
+  const [currency, setCurrency] = useState<Currency>("USD");
+  const [activeTab, setActiveTab] = useState("research");
+
+  const convertCurrency = (value: string | number, fromCurrency: string, toCurrency: Currency) => {
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(numValue)) return 0;
+    const fromRate = EXCHANGE_RATES[fromCurrency as Currency] || 1;
+    const toRate = EXCHANGE_RATES[toCurrency];
+    return (numValue / fromRate) * toRate;
+  };
+
+  const getCurrencySymbol = (curr: Currency) => {
+    switch(curr) {
+      case "USD": return "$";
+      case "AED": return "AED ";
+      case "EUR": return "€";
+    }
+  };
+
+  const formatAmount = (value: number) => {
+    return `${getCurrencySymbol(currency)}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   const filteredPotentialProducts = potentialProducts?.filter((p: any) => 
     !search || p.name?.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase())
@@ -133,28 +154,66 @@ export default function Products() {
           </Card>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search products..." 
-            className="pl-10 bg-black/20 border-white/10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            data-testid="input-search-products"
-          />
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search products..." 
+              className="pl-10 bg-background border-border"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              data-testid="input-search-products"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">Display in:</span>
+            <Select value={currency} onValueChange={(val) => setCurrency(val as Currency)}>
+              <SelectTrigger className="w-24 bg-background border-border" data-testid="select-currency">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                {CURRENCIES.map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        <Tabs defaultValue="research" className="w-full">
-          <TabsList className="bg-black/20 border border-white/10 p-1 mb-6">
-            <TabsTrigger value="research" className="data-[state=active]:bg-blue-600 text-muted-foreground data-[state=active]:text-white">
-              Product Research ({filteredPotentialProducts.length})
-            </TabsTrigger>
-            <TabsTrigger value="inventory" className="data-[state=active]:bg-emerald-600 text-muted-foreground data-[state=active]:text-white">
-              Inventory ({filteredInventory.length})
-            </TabsTrigger>
-          </TabsList>
+        <div className="flex gap-2 p-1 bg-gradient-to-r from-card to-muted rounded-xl border border-border shadow-inner">
+          <button
+            onClick={() => setActiveTab("research")}
+            className={`flex-1 flex items-center justify-center gap-3 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === "research"
+                ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+            }`}
+            data-testid="tab-research"
+          >
+            <Search className="h-4 w-4" />
+            <span>Product Research</span>
+            <Badge variant="secondary" className={`${activeTab === "research" ? "bg-white/20 text-white" : "bg-muted"}`}>
+              {filteredPotentialProducts.length}
+            </Badge>
+          </button>
+          <button
+            onClick={() => setActiveTab("inventory")}
+            className={`flex-1 flex items-center justify-center gap-3 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === "inventory"
+                ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/25"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+            }`}
+            data-testid="tab-inventory"
+          >
+            <Package className="h-4 w-4" />
+            <span>Inventory</span>
+            <Badge variant="secondary" className={`${activeTab === "inventory" ? "bg-white/20 text-white" : "bg-muted"}`}>
+              {filteredInventory.length}
+            </Badge>
+          </button>
+        </div>
 
-          <TabsContent value="research" className="mt-0">
+        {activeTab === "research" && (
             <Card className="glass-card bg-card/40 border-none">
               <CardHeader>
                 <CardTitle>Products Under Research</CardTitle>
@@ -257,9 +316,9 @@ export default function Products() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+        )}
 
-          <TabsContent value="inventory" className="mt-0">
+        {activeTab === "inventory" && (
             <Card className="glass-card bg-card/40 border-none">
               <CardHeader>
                 <CardTitle>Inventory Stock</CardTitle>
@@ -312,10 +371,10 @@ export default function Products() {
                               <TableCell className="text-center font-bold text-foreground">{quantityAvailable}</TableCell>
                               <TableCell className="text-center text-emerald-600 dark:text-emerald-400 font-medium">{quantitySold}</TableCell>
                               <TableCell className="text-right font-mono text-muted-foreground">
-                                {item.currency} {parseFloat(item.unitCost || 0).toFixed(2)}
+                                {formatAmount(convertCurrency(item.unitCost || 0, item.currency || 'USD', currency))}
                               </TableCell>
                               <TableCell className="text-right font-mono text-foreground">
-                                {item.currency} {totalValue.toFixed(2)}
+                                {formatAmount(convertCurrency(totalValue, item.currency || 'USD', currency))}
                               </TableCell>
                               <TableCell>
                                 {item.status === 'sold_out' ? (
@@ -359,8 +418,7 @@ export default function Products() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+        )}
 
         <BuyProductDialog item={buyItem} onClose={() => setBuyItem(null)} />
         <SellProductDialog item={sellItem} onClose={() => setSellItem(null)} />

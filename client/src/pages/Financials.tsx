@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/ui/Layout";
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from "@/hooks/use-expenses";
-import { useSalesOrders } from "@/hooks/use-sales-orders";
+import { useSalesOrders, useUpdateSalesOrder } from "@/hooks/use-sales-orders";
 import { useBankAccounts, useAdjustBankBalance } from "@/hooks/use-bank-accounts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,14 +11,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Search, Filter, TrendingUp, TrendingDown, Building2, ArrowUpRight, ArrowDownRight, Edit } from "lucide-react";
-import { format } from "date-fns";
+import { Plus, Trash2, Search, Filter, TrendingUp, TrendingDown, Building2, ArrowUpRight, ArrowDownRight, Edit, Download, Calendar } from "lucide-react";
+import { format, parseISO, startOfMonth, endOfMonth, subMonths, isWithinInterval } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertExpenseSchema, CURRENCIES, EXCHANGE_RATES, type Currency } from "@shared/schema";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
+import * as XLSX from "xlsx";
 
 const formSchema = z.object({
   category: z.string().min(1, "Category is required"),
@@ -34,17 +35,35 @@ const formSchema = z.object({
 const EXPENSE_CATEGORIES = ["Marketing", "Subscription", "Shipping", "Warehouse", "Tools", "Misc"];
 const PAID_BY_OPTIONS = ["Germany", "UAE", "Company", "Person A", "Person B"];
 
+const getMonthOptions = () => {
+  const options = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const date = subMonths(now, i);
+    options.push({
+      value: format(date, 'yyyy-MM'),
+      label: format(date, 'MMMM yyyy')
+    });
+  }
+  return options;
+};
+
 export default function Financials() {
+  const { toast } = useToast();
   const { data: expenses, isLoading } = useExpenses();
   const { data: salesOrders } = useSalesOrders();
   const { data: bankAccounts } = useBankAccounts();
   const deleteExpense = useDeleteExpense();
+  const updateSalesOrder = useUpdateSalesOrder();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editExpense, setEditExpense] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterPaidBy, setFilterPaidBy] = useState("all");
+  const [filterMonth, setFilterMonth] = useState("all");
   const [currency, setCurrency] = useState<Currency>("USD");
+  
+  const monthOptions = getMonthOptions();
 
   const convertCurrency = (value: string | number, fromCurrency: string, toCurrency: Currency) => {
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
@@ -66,6 +85,18 @@ export default function Financials() {
     return `${getCurrencySymbol(currency)}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  // Filter expenses by month
+  const filterByMonth = (dateStr: string) => {
+    if (filterMonth === "all") return true;
+    try {
+      const date = new Date(dateStr);
+      const filterDate = new Date(filterMonth + "-01");
+      return format(date, 'yyyy-MM') === filterMonth;
+    } catch {
+      return true;
+    }
+  };
+
   // Filter expenses
   const filteredExpenses = expenses?.filter((e: any) => {
     const matchesSearch = !search || 
@@ -73,8 +104,64 @@ export default function Financials() {
       e.category?.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = filterCategory === "all" || e.category === filterCategory;
     const matchesPaidBy = filterPaidBy === "all" || e.paidBy === filterPaidBy;
-    return matchesSearch && matchesCategory && matchesPaidBy;
+    const matchesMonth = filterByMonth(e.date);
+    return matchesSearch && matchesCategory && matchesPaidBy && matchesMonth;
   }) || [];
+
+  // Filter sales orders by month
+  const filteredSalesOrders = salesOrders?.filter((o: any) => filterByMonth(o.saleDate)) || [];
+
+  // Export to Excel
+  const exportExpensesToExcel = () => {
+    const data = filteredExpenses.map((e: any) => ({
+      Date: e.date,
+      Category: e.category,
+      Description: e.description || '',
+      Amount: parseFloat(e.amount),
+      Currency: e.currency || 'USD',
+      'Paid By': e.paidBy || '',
+      'Payment Method': e.paymentMethod || ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+    const fileName = filterMonth === "all" ? "expenses_all.xlsx" : `expenses_${filterMonth}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast({ title: "Exported", description: `Expenses exported to ${fileName}` });
+  };
+
+  const exportSalesToExcel = () => {
+    const data = filteredSalesOrders.map((o: any) => ({
+      Date: o.saleDate,
+      Channel: o.channel,
+      Quantity: o.quantitySold,
+      Revenue: parseFloat(o.totalRevenue),
+      'Marketplace Fees': parseFloat(o.marketplaceFees || 0),
+      'Shipping Cost': parseFloat(o.shippingCost || 0),
+      'Net Revenue': parseFloat(o.netRevenue),
+      COGS: parseFloat(o.cogs),
+      Profit: parseFloat(o.profit),
+      Currency: o.currency || 'USD',
+      Status: o.payoutStatus
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sales Orders");
+    const fileName = filterMonth === "all" ? "sales_orders_all.xlsx" : `sales_orders_${filterMonth}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast({ title: "Exported", description: `Sales orders exported to ${fileName}` });
+  };
+
+  const handleStatusChange = (orderId: number, newStatus: string) => {
+    updateSalesOrder.mutate({ id: orderId, payoutStatus: newStatus }, {
+      onSuccess: () => {
+        toast({ title: "Status Updated", description: "Sales order status has been updated." });
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
+      }
+    });
+  };
 
   // Calculate totals
   const totalExpenses = filteredExpenses.reduce((sum: number, e: any) => 
@@ -207,6 +294,18 @@ export default function Financials() {
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
                 <CardTitle>Expense Ledger</CardTitle>
                 <div className="flex flex-wrap gap-2">
+                  <Select value={filterMonth} onValueChange={setFilterMonth}>
+                    <SelectTrigger className="w-44 bg-background border-border" data-testid="select-filter-month">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Month" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="all">All Months</SelectItem>
+                      {monthOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <div className="relative w-64">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input 
@@ -239,6 +338,16 @@ export default function Financials() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={exportExpensesToExcel}
+                    disabled={filteredExpenses.length === 0}
+                    data-testid="button-export-expenses"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Excel
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -338,8 +447,32 @@ export default function Financials() {
 
           <TabsContent value="sales" className="mt-0">
             <Card className="glass-card bg-card/40 border-none">
-              <CardHeader>
+              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
                 <CardTitle>Sales Orders</CardTitle>
+                <div className="flex flex-wrap gap-2">
+                  <Select value={filterMonth} onValueChange={setFilterMonth}>
+                    <SelectTrigger className="w-44 bg-background border-border" data-testid="select-filter-month-sales">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Month" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="all">All Months</SelectItem>
+                      {monthOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={exportSalesToExcel}
+                    disabled={filteredSalesOrders.length === 0}
+                    data-testid="button-export-sales"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Excel
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border border-border overflow-hidden">
@@ -356,12 +489,12 @@ export default function Financials() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {!salesOrders || salesOrders.length === 0 ? (
+                      {filteredSalesOrders.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No sales yet. Sell products from the Products page.</TableCell>
                         </TableRow>
                       ) : (
-                        salesOrders.map((order: any) => (
+                        filteredSalesOrders.map((order: any) => (
                           <TableRow key={order.id} className="border-border hover:bg-muted/50 transition-colors">
                             <TableCell className="font-mono text-muted-foreground">
                               {format(new Date(order.saleDate), 'yyyy-MM-dd')}
@@ -386,11 +519,20 @@ export default function Financials() {
                               {order.currency} {parseFloat(order.profit).toFixed(2)}
                             </TableCell>
                             <TableCell>
-                              <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                                order.payoutStatus === 'received' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                              }`}>
-                                {order.payoutStatus}
-                              </span>
+                              <Select 
+                                value={order.payoutStatus} 
+                                onValueChange={(val) => handleStatusChange(order.id, val)}
+                              >
+                                <SelectTrigger className={`w-28 h-8 text-xs ${
+                                  order.payoutStatus === 'received' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700'
+                                }`} data-testid={`select-status-${order.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-card border-border">
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="received">Received</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                           </TableRow>
                         ))
