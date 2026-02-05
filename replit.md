@@ -55,6 +55,7 @@ The application is fully functional with:
 
 ### Dashboard
 - Revenue, profit, expense summary cards
+- Additional stats: Total Sales Orders, Pending/Received Payouts, Units in Stock, Products Researching/Ready to Buy
 - Bank account balances display
 - Revenue vs Expenses chart
 - Expense breakdown pie chart
@@ -63,15 +64,21 @@ The application is fully functional with:
 
 ### Financials (/financials)
 - Expense ledger with filters (category, paid by)
-- Sales orders table
+- Sales orders table with status management (pending/received)
+- Sales order delete functionality (admin/founder only)
 - Monthly expense bar chart
 - Expense category pie chart
 - Bank account management with deposit/withdraw
+- Automatic bank balance update when sales order status changes to "received"
+
+### Account (/account)
+- Profile management (first name, last name, profile photo)
+- Password change with current password verification
 
 ### Products (/products)
 - Product Research tab: Add products for research, buy to add to inventory
 - Inventory tab: Track stock levels, sell products
-- Low stock alerts
+- Low stock alerts (threshold: <10 units)
 - Multi-currency support
 
 ### Tasks (/tasks)
