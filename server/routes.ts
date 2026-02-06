@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { EXCHANGE_RATES } from "@shared/schema";
 import multer from "multer";
 import path from "path";
@@ -19,6 +19,30 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // ✅ Supports both Replit auth and email/password session
+  const isAppAuthenticated = (req: any, res: any, next: any) => {
+    if (req.user?.claims?.sub) return next();
+
+    const sessionUserId = req.session?.userId;
+    if (sessionUserId) {
+      req.user = req.user || {};
+      req.user.claims = req.user.claims || {};
+      req.user.claims.sub = sessionUserId;
+
+      if (req.session?.user?.claims) {
+        const c = req.session.user.claims;
+        req.user.claims.email = c.email;
+        req.user.claims.first_name = c.first_name;
+        req.user.claims.last_name = c.last_name;
+        req.user.claims.profile_image_url = c.profile_image_url;
+      }
+
+      return next();
+    }
+
+    return res.status(401).json({ message: "Not authenticated" });
+  };
   // Setup Authentication
   await setupAuth(app);
 
@@ -397,7 +421,7 @@ export async function registerRoutes(
     res.json(orders);
   });
 
-  app.put(api.salesOrders.update.path, isAuthenticated, async (req: any, res) => {
+  app.put(api.salesOrders.update.path, isAppAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const input = api.salesOrders.update.input.parse(req.body);
@@ -459,7 +483,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.salesOrders.delete.path, isAuthenticated, async (req: any, res) => {
+  app.delete(api.salesOrders.delete.path, isAppAuthenticated, async (req: any, res) => {
     try {
       const currentUserId = req.user?.claims?.sub;
       const currentUser = await storage.getUsers().then(users => users.find(u => u.id === currentUserId));
@@ -516,7 +540,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post(api.bankAccounts.adjustBalance.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.bankAccounts.adjustBalance.path, isAppAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const input = api.bankAccounts.adjustBalance.input.parse(req.body);
@@ -784,7 +808,7 @@ export async function registerRoutes(
   });
 
   // Rename folder (update all files in folder)
-  app.put('/api/folders/:folderName', isAuthenticated, async (req, res) => {
+  app.put('/api/folders/:folderName', isAppAuthenticated, async (req, res) => {
     try {
       const oldName = req.params.folderName;
       const { newName } = req.body;
@@ -800,7 +824,7 @@ export async function registerRoutes(
   });
 
   // Delete folder and all files in it
-  app.delete('/api/folders/:folderName', isAuthenticated, async (req, res) => {
+  app.delete('/api/folders/:folderName', isAppAuthenticated, async (req, res) => {
     try {
       const folderName = req.params.folderName;
       // Get all files in the folder to delete from disk
@@ -939,7 +963,7 @@ export async function registerRoutes(
     res.json(usersList);
   });
 
-  app.put(api.users.updateRole.path, isAuthenticated, async (req: any, res) => {
+  app.put(api.users.updateRole.path, isAppAuthenticated, async (req: any, res) => {
     try {
       const currentUserId = req.user?.claims?.sub;
       const currentUser = await storage.getUsers().then(users => users.find(u => u.id === currentUserId));
@@ -966,7 +990,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post(api.users.deactivate.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.users.deactivate.path, isAppAuthenticated, async (req: any, res) => {
     const currentUserId = req.user?.claims?.sub;
     const currentUser = await storage.getUsers().then(users => users.find(u => u.id === currentUserId));
     if (!currentUser || !['admin', 'founder'].includes(currentUser.role || '')) {
@@ -982,7 +1006,7 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
-  app.post(api.users.reactivate.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.users.reactivate.path, isAppAuthenticated, async (req: any, res) => {
     const currentUserId = req.user?.claims?.sub;
     const currentUser = await storage.getUsers().then(users => users.find(u => u.id === currentUserId));
     if (!currentUser || !['admin', 'founder'].includes(currentUser.role || '')) {
@@ -1000,7 +1024,7 @@ export async function registerRoutes(
 
   // === ACCOUNT (Current User) ===
   // === ACCOUNT (Current User) ===
-  app.put('/api/account/profile', isAuthenticated, async (req: any, res) => {
+  app.put('/api/account/profile', isAppAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -1059,7 +1083,7 @@ export async function registerRoutes(
   });
 
 
-  app.put('/api/account/password', isAuthenticated, async (req: any, res) => {
+  app.put('/api/account/password', isAppAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -1147,20 +1171,20 @@ export async function registerRoutes(
   });
 
   // === NOTIFICATIONS ===
-  app.get(api.notifications.list.path, isAuthenticated, async (req: any, res) => {
+  app.get(api.notifications.list.path, isAppAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
     const notifications = await storage.getNotifications(userId);
     res.json(notifications);
   });
 
-  app.post(api.notifications.markRead.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.notifications.markRead.path, isAppAuthenticated, async (req: any, res) => {
     const id = parseInt(req.params.id);
     await storage.markNotificationRead(id);
     res.json({ success: true });
   });
 
-  app.post(api.notifications.markAllRead.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.notifications.markAllRead.path, isAppAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
     await storage.markAllNotificationsRead(userId);
@@ -1262,7 +1286,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post(api.auth.changePassword.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.auth.changePassword.path, isAppAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
