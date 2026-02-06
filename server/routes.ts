@@ -1170,18 +1170,21 @@ app.post("/api/email/test", async (req, res) => {
   });
 
  // === INVITATIONS ===
+// === INVITATIONS ===
+
+// LIST
 app.get(api.invitations.list.path, async (req, res) => {
   const invitationsList = await storage.getInvitations();
   return res.json(invitationsList);
 });
 
+// CREATE + SEND EMAIL
 app.post(api.invitations.create.path, async (req, res) => {
   try {
     const input = api.invitations.create.input.parse(req.body);
 
-    const crypto = await import("crypto");
-    const token = crypto.randomBytes(32).toString("hex");
-
+    const cryptoMod = await import("crypto");
+    const token = cryptoMod.randomBytes(32).toString("hex");
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -1192,7 +1195,14 @@ app.post(api.invitations.create.path, async (req, res) => {
       expiresAt,
     });
 
-    // ✅ لاحقاً رح نبعت إيميل هون
+    // ✅ send email
+    await sendInvitationEmail({
+      to: invitation.email,
+      role: invitation.role,
+      token: invitation.token,
+      appUrl: process.env.APP_URL!,
+    });
+
     return res.status(201).json(invitation);
   } catch (err: any) {
     if (err instanceof z.ZodError) {
@@ -1206,35 +1216,39 @@ app.post(api.invitations.create.path, async (req, res) => {
   }
 });
 
-// ✅ RESEND invitation (regenerate token + extend expiry)
+// RESEND (UUID id) + regenerate token + send email
 app.post("/api/invitations/:id/resend", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    if (!Number.isFinite(id)) {
-      return res.status(400).json({ message: "Invalid invitation id" });
-    }
+    const id = String(req.params.id); // ✅ UUID
 
+    // ✅ if you have direct getter, use it. Otherwise list + find:
     const invitations = await storage.getInvitations();
     const inv = invitations.find((x: any) => x.id === id);
 
     if (!inv) return res.status(404).json({ message: "Invitation not found" });
     if (inv.used) return res.status(400).json({ message: "Invitation already accepted/used" });
 
-    const crypto = await import("crypto");
-    const token = crypto.randomBytes(32).toString("hex");
-
+    const cryptoMod = await import("crypto");
+    const token = cryptoMod.randomBytes(32).toString("hex");
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     await storage.updateInvitation(inv.id, { token, expiresAt });
 
-    // ✅ لاحقاً رح نبعت الإيميل هون كمان
+    await sendInvitationEmail({
+      to: inv.email,
+      role: inv.role,
+      token,
+      appUrl: process.env.APP_URL!,
+    });
+
     return res.json({ success: true });
-  } catch (err: any) {
-    console.error("Resend invitation error:", err);
-    return res.status(500).json({ message: err?.message || "Failed to resend invitation" });
+  } catch (e: any) {
+    console.error("Resend invitation error:", e);
+    return res.status(500).json({ message: e?.message || "Failed to resend invitation" });
   }
 });
+
 
   // === NOTIFICATIONS ===
   app.get(api.notifications.list.path, isAppAuthenticated, async (req: any, res) => {
