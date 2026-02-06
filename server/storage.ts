@@ -82,11 +82,17 @@ export interface IStorage {
   deactivateUser(id: string): Promise<void>;
   reactivateUser(id: string): Promise<void>;
   updateUserProfile(id: string, data: { firstName: string; lastName: string | null; profileImageUrl: string | null }): Promise<void>;
+
   
-  // Invitations
+    // Invitations
   getInvitations(): Promise<Invitation[]>;
   createInvitation(invitation: InsertInvitation): Promise<Invitation>;
+  updateInvitation(
+    id: string,
+    data: { token: string; expiresAt: Date }
+  ): Promise<void>;
   markInvitationUsed(id: string): Promise<void>;
+
 
   // User password
   updateUserPassword(id: string, passwordHash: string): Promise<void>;
@@ -299,17 +305,40 @@ export class DatabaseStorage implements IStorage {
 
   // Invitations
   async getInvitations(): Promise<Invitation[]> {
-    return await db.select().from(invitations).orderBy(desc(invitations.createdAt));
+    return await db
+      .select()
+      .from(invitations)
+      .orderBy(desc(invitations.createdAt));
   }
 
   async createInvitation(invitation: InsertInvitation): Promise<Invitation> {
-    const [newInvitation] = await db.insert(invitations).values(invitation).returning();
+    const [newInvitation] = await db
+      .insert(invitations)
+      .values(invitation)
+      .returning();
     return newInvitation;
   }
 
-  async markInvitationUsed(id: string): Promise<void> {
-    await db.update(invitations).set({ used: true }).where(eq(invitations.id, id));
+  async updateInvitation(
+    id: string,
+    data: { token: string; expiresAt: Date }
+  ): Promise<void> {
+    await db
+      .update(invitations)
+      .set({
+        token: data.token,
+        expiresAt: data.expiresAt,
+      })
+      .where(eq(invitations.id, id));
   }
+
+  async markInvitationUsed(id: string): Promise<void> {
+    await db
+      .update(invitations)
+      .set({ used: true })
+      .where(eq(invitations.id, id));
+  }
+
 
   // Notifications
   async getNotifications(userId: string): Promise<Notification[]> {
