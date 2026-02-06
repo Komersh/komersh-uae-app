@@ -6,32 +6,34 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
-import { authStorage } from "./storage";
+
+// ✅ IMPORTANT: use main storage (has getUsers)
+import { storage } from "../storage";
 
 const getOidcConfig = memoize(
   async () => {
+    // If not running on Replit / no REPL_ID, disable OIDC
     if (!process.env.REPL_ID) {
       return null as any;
     }
 
     return await client.discovery(
       new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID
+      process.env.REPL_ID,
     );
   },
   () => "default",
-  { maxAge: 3600 * 1000 }
+  { maxAge: 3600 * 1000 },
 );
 
 export function getSession() {
-  const sessionTtlMs = 7 * 24 * 60 * 60 * 1000; // 1 week (ms)
-  const sessionTtlSeconds = Math.floor(sessionTtlMs / 1000);
-
+  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
+
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
     createTableIfMissing: false,
-    ttl: sessionTtlSeconds, // IMPORTANT: connect-pg-simple expects seconds
+    ttl: sessionTtl,
     tableName: "sessions",
   });
 
@@ -42,19 +44,20 @@ export function getSession() {
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
-    proxy: true, // IMPORTANT when behind Railway/Proxy
     cookie: {
       httpOnly: true,
-      secure: isProd,     // ONLY secure in prod (https)
-      sameSite: "lax",    // IMPORTANT so cookie works for normal navigation
-      maxAge: sessionTtlMs,
+      // ✅ for Railway / production
+      secure: isProd, // true in prod, false in dev
+      // ✅ important for cross-site redirects (OIDC) and many hosted envs
+      sameSite: isProd ? "none" : "lax",
+      maxAge: sessionTtl,
     },
   });
 }
 
 function updateUserSession(
   user: any,
-  tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers
+  tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
 ) {
   user.claims = tokens.claims();
   user.access_token = tokens.access_token;
@@ -62,8 +65,13 @@ function updateUserSession(
   user.expires_at = user.claims?.exp;
 }
 
+// ✅ Only used for OIDC users (optional)
 async function upsertUser(claims: any) {
-  await authStorage.upsertUser({
+  // storage.upsertUser exists in many templates, but if your storage
+  // doesn't have it, you can remove this safely.
+  if (typeof (storage as any).upsertUser !== "function") return;
+
+  await (storage as any).upsertUser({
     id: claims["sub"],
     email: claims["email"],
     firstName: claims["first_name"],
@@ -74,7 +82,6 @@ async function upsertUser(claims: any) {
 
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
-
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
@@ -83,11 +90,14 @@ export async function setupAuth(app: Express) {
 
   const verify: VerifyFunction = async (
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
-    verified: passport.AuthenticateCallback
+    verified: passport.AuthenticateCallback,
   ) => {
     const user: any = {};
     updateUserSession(user, tokens);
+
+    // Optional user upsert
     await upsertUser(tokens.claims());
+
     verified(null, user);
   };
 
@@ -97,6 +107,7 @@ export async function setupAuth(app: Express) {
   // Helper function to ensure strategy exists for a domain
   const ensureStrategy = (domain: string) => {
     const strategyName = `replitauth:${domain}`;
+
     if (!registeredStrategies.has(strategyName)) {
       const strategy = new Strategy(
         {
@@ -105,8 +116,9 @@ export async function setupAuth(app: Express) {
           scope: "openid email profile offline_access",
           callbackURL: `https://${domain}/api/callback`,
         },
-        verify
+        verify,
       );
+
       passport.use(strategy);
       registeredStrategies.add(strategyName);
     }
@@ -115,8 +127,11 @@ export async function setupAuth(app: Express) {
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
+  // ✅ Replit login (only works if REPL_ID is configured)
   app.get("/api/login", (req, res, next) => {
+    if (!config) return res.status(404).send("OIDC not configured");
     ensureStrategy(req.hostname);
+
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
@@ -124,7 +139,9 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", (req, res, next) => {
+    if (!config) return res.status(404).send("OIDC not configured");
     ensureStrategy(req.hostname);
+
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
@@ -132,31 +149,39 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/logout", (req, res) => {
+    if (!config) return res.redirect("/");
+
     req.logout(() => {
       res.redirect(
         client.buildEndSessionUrl(config, {
           client_id: process.env.REPL_ID!,
           post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
+        }).href,
       );
     });
   });
 
   /**
-   * ✅ IMPORTANT:
-   * Frontend checks this endpoint to know if user is logged in.
-   * Support BOTH Replit auth and Email/Password session.
+   * ✅ IMPORTANT ENDPOINT:
+   * Used by frontend to check if user is logged in.
+   * Supports:
+   * 1) Replit OIDC (req.user.claims.sub)
+   * 2) Email/Password sessions (req.session.userId)
    */
   app.get("/api/auth/user", async (req: any, res) => {
-    // Replit / Passport user
-    if (req.isAuthenticated?.() && req.user?.claims?.sub) {
-      return res.json(req.user);
-    }
+    try {
+      // 1) OIDC user
+      if (req.user?.claims?.sub) {
+        return res.json(req.user);
+      }
 
-    // Email/Password session user
-    const sessionUserId = req.session?.userId;
-    if (sessionUserId) {
-      const users = await authStorage.getUsers();
+      // 2) Email/Password session user
+      const sessionUserId = req.session?.userId;
+      if (!sessionUserId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const users = await storage.getUsers();
       const user = users.find((u: any) => u.id === sessionUserId);
 
       if (!user || user.isActive === false) {
@@ -172,26 +197,20 @@ export async function setupAuth(app: Express) {
           profile_image_url: user.profileImageUrl,
         },
       });
+    } catch (e: any) {
+      return res.status(500).json({ message: e?.message || "Server error" });
     }
-
-    return res.status(401).json({ message: "Unauthorized" });
   });
 }
 
-/**
- * ✅ Allow both:
- * - Replit OIDC (passport)
- * - Email/password session (req.session.userId)
- */
 export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
-  // Email/password session
-  if (req.session?.userId) {
-    return next();
-  }
-
-  // Replit / Passport
   const user = req.user as any;
-  if (!req.isAuthenticated?.() || !user?.expires_at) {
+
+  // If using session-based email/password auth
+  if (req.session?.userId) return next();
+
+  // If using OIDC auth
+  if (!req.isAuthenticated() || !user?.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
@@ -210,7 +229,7 @@ export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
     updateUserSession(user, tokenResponse);
     return next();
-  } catch (error) {
+  } catch (_error) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 };
