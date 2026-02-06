@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/ui/Layout";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
   Card,
@@ -18,7 +18,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
 import {
   Form,
   FormControl,
@@ -53,8 +52,24 @@ type PasswordFormData = z.infer<typeof passwordSchema>;
 
 export default function Account() {
   const { toast } = useToast();
-  const { user, isLoading: userLoading } = useAuth();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  /* =========================
+     Fetch user ALWAYS from API
+  ========================= */
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["/api/auth/user"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/user", {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        throw new Error(`${res.status}: ${await res.text()}`);
+      }
+      return res.json();
+    },
+    retry: false,
+  });
 
   /* =========================
      Profile form
@@ -94,13 +109,15 @@ export default function Account() {
      Mutations
   ========================= */
 
-  // ✅ Update profile
+  // Update profile
   const updateProfile = useMutation({
     mutationFn: async (data: ProfileFormData) => {
       await apiRequest("PUT", "/api/users/profile", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["/api/auth/user"],
+      });
       toast({
         title: "Profile Updated",
         description: "Your profile has been updated successfully.",
@@ -115,7 +132,7 @@ export default function Account() {
     },
   });
 
-  // ✅ Change password (IMPORTANT FIX)
+  // Change password
   const changePassword = useMutation({
     mutationFn: async (data: PasswordFormData) => {
       const { currentPassword, newPassword } = data;
@@ -164,7 +181,7 @@ export default function Account() {
     reader.readAsDataURL(file);
   };
 
-  if (userLoading) {
+  if (isLoading) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
