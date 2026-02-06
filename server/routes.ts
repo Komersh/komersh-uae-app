@@ -1169,17 +1169,19 @@ app.post("/api/email/test", async (req, res) => {
     });
   });
 
-  // === INVITATIONS ===
- app.get(api.invitations.list.path, async (req, res) => {
+ // === INVITATIONS ===
+app.get(api.invitations.list.path, async (req, res) => {
   const invitationsList = await storage.getInvitations();
-  res.json(invitationsList);
+  return res.json(invitationsList);
 });
 
 app.post(api.invitations.create.path, async (req, res) => {
   try {
     const input = api.invitations.create.input.parse(req.body);
 
+    const crypto = await import("crypto");
     const token = crypto.randomBytes(32).toString("hex");
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -1191,7 +1193,7 @@ app.post(api.invitations.create.path, async (req, res) => {
     });
 
     // ✅ لاحقاً رح نبعت إيميل هون
-    res.status(201).json(invitation);
+    return res.status(201).json(invitation);
   } catch (err: any) {
     if (err instanceof z.ZodError) {
       return res.status(400).json({
@@ -1200,38 +1202,17 @@ app.post(api.invitations.create.path, async (req, res) => {
       });
     }
     console.error("Create invitation error:", err);
-    return res.status(500).json({ message: "Failed to create invitation" });
+    return res.status(500).json({ message: err?.message || "Failed to create invitation" });
   }
 });
 
-// ✅ RESEND invitation (regenerates token + extends expiry)
+// ✅ RESEND invitation (regenerate token + extend expiry)
 app.post("/api/invitations/:id/resend", async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-
-    const invitations = await storage.getInvitations();
-    const inv = invitations.find((x: any) => x.id === id);
-
-    if (!inv) return res.status(404).json({ message: "Invitation not found" });
-    if (inv.used) return res.status(400).json({ message: "Invitation already accepted" });
-
-    const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    await storage.updateInvitation(inv.id, { token, expiresAt });
-
-    // ✅ لاحقاً رح نبعت الإيميل هون كمان
-    return res.json({ success: true });
-  } catch (err) {
-    console.error("Resend invitation error:", err);
-    return res.status(500).json({ message: "Failed to resend invitation" });
-  }
-});
-
-app.post("/api/invitations/:id/resend", async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ message: "Invalid invitation id" });
+    }
 
     const invitations = await storage.getInvitations();
     const inv = invitations.find((x: any) => x.id === id);
@@ -1239,27 +1220,19 @@ app.post("/api/invitations/:id/resend", async (req, res) => {
     if (!inv) return res.status(404).json({ message: "Invitation not found" });
     if (inv.used) return res.status(400).json({ message: "Invitation already accepted/used" });
 
-    // ✅ اعمل Token جديد + جدد الصلاحية (اختياري بس ممتاز)
+    const crypto = await import("crypto");
     const token = crypto.randomBytes(32).toString("hex");
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     await storage.updateInvitation(inv.id, { token, expiresAt });
 
-    // ✅ ابعت الإيميل بنفس منطق الإرسال اللي عندك في create invitation
-    // مهم: استخدم APP_URL + token
-    // مثال:
-    await sendInvitationEmail({
-      to: inv.email,
-      role: inv.role,
-      token,
-      appUrl: process.env.APP_URL!,
-    });
-
+    // ✅ لاحقاً رح نبعت الإيميل هون كمان
     return res.json({ success: true });
-  } catch (e: any) {
-    console.error("Resend invitation error:", e);
-    return res.status(500).json({ message: e?.message || "Failed to resend invitation" });
+  } catch (err: any) {
+    console.error("Resend invitation error:", err);
+    return res.status(500).json({ message: err?.message || "Failed to resend invitation" });
   }
 });
 
