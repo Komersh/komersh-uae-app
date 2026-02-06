@@ -21,8 +21,8 @@ export async function registerRoutes(
 ): Promise<Server> {
   // Setup Authentication
   await setupAuth(app);
-  registerAuthRoutes(app);
-    // ✅ Disable caching for ALL API responses (prevents 304 Not Modified issues)
+
+  // ✅ Disable caching BEFORE auth routes are registered (IMPORTANT)
   app.set("etag", false);
   app.use("/api", (req, res, next) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -31,6 +31,10 @@ export async function registerRoutes(
     res.setHeader("Surrogate-Control", "no-store");
     next();
   });
+
+  // ✅ Register auth routes AFTER no-cache middleware
+  registerAuthRoutes(app);
+
 
 
   // === EMAIL/PASSWORD LOGIN ===
