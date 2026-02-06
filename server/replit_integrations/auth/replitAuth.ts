@@ -8,7 +8,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 
-import { storage } from "../../storage"; // ✅ FIX: correct path (was ../storage)
+import { storage } from "../../storage";
 import { authStorage } from "./storage";
 
 const getOidcConfig = memoize(
@@ -143,38 +143,8 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  // ✅ This endpoint is what your frontend calls to check session
-  // It supports BOTH Replit-OIDC sessions and Email/Password sessions
-  app.get("/api/auth/user", async (req: any, res) => {
-    try {
-      // Replit session present
-      if (req.user?.claims?.sub) return res.json(req.user);
-
-      // Email/password session fallback
-      const sessionUserId = req.session?.userId;
-      if (!sessionUserId) return res.status(401).json({ message: "Unauthorized" });
-
-      const users = await storage.getUsers();
-      const user = users.find((u: any) => u.id === sessionUserId);
-
-      if (!user || user.isActive === false) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      return res.json({
-        claims: {
-          sub: user.id,
-          email: user.email,
-          first_name: user.firstName,
-          last_name: user.lastName,
-          profile_image_url: user.profileImageUrl,
-        },
-      });
-    } catch (e: any) {
-      return res.status(500).json({ message: e?.message || "Server error" });
-    }
-  });
-}
+  // ✅ مهم: سكّر setupAuth هون (القوس كان ناقص عندك)
+} // <-- لا تحذف هذا
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
@@ -198,7 +168,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     }
   }
 
-  // Email/password session
+  // Email/password session fallback
   const sessionUserId = (req as any).session?.userId;
   if (!sessionUserId) return res.status(401).json({ message: "Unauthorized" });
 
