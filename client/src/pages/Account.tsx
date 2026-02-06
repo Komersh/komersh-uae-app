@@ -112,7 +112,7 @@ export default function Account() {
   // Update profile
   const updateProfile = useMutation({
     mutationFn: async (data: ProfileFormData) => {
-      await apiRequest("PUT", "/api/users/profile", data);
+await apiRequest("PUT", "/api/account/profile", data);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({
