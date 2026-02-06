@@ -10,7 +10,7 @@ import { authStorage } from "./storage";
 
 const getOidcConfig = memoize(
   async () => {
- if (!process.env.REPL_ID) {
+    if (!process.env.REPL_ID) {
       return null as any;
     }
 
@@ -24,23 +24,30 @@ const getOidcConfig = memoize(
 );
 
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const sessionTtlMs = 7 * 24 * 60 * 60 * 1000; // 1 week (ms)
+  const sessionTtlSeconds = Math.floor(sessionTtlMs / 1000);
+
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
     createTableIfMissing: false,
-    ttl: sessionTtl,
+    ttl: sessionTtlSeconds, // IMPORTANT: connect-pg-simple expects seconds
     tableName: "sessions",
   });
+
+  const isProd = process.env.NODE_ENV === "production";
+
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    proxy: true, // IMPORTANT when behind Railway/Proxy
     cookie: {
       httpOnly: true,
-      secure: true,
-      maxAge: sessionTtl,
+      secure: isProd,     // ONLY secure in prod (https)
+      sameSite: "lax",    // IMPORTANT so cookie works for normal navigation
+      maxAge: sessionTtlMs,
     },
   });
 }
@@ -67,6 +74,7 @@ async function upsertUser(claims: any) {
 
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
+
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
@@ -77,7 +85,7 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
+    const user: any = {};
     updateUserSession(user, tokens);
     await upsertUser(tokens.claims());
     verified(null, user);
@@ -133,12 +141,57 @@ export async function setupAuth(app: Express) {
       );
     });
   });
+
+  /**
+   * ✅ IMPORTANT:
+   * Frontend checks this endpoint to know if user is logged in.
+   * Support BOTH Replit auth and Email/Password session.
+   */
+  app.get("/api/auth/user", async (req: any, res) => {
+    // Replit / Passport user
+    if (req.isAuthenticated?.() && req.user?.claims?.sub) {
+      return res.json(req.user);
+    }
+
+    // Email/Password session user
+    const sessionUserId = req.session?.userId;
+    if (sessionUserId) {
+      const users = await authStorage.getUsers();
+      const user = users.find((u: any) => u.id === sessionUserId);
+
+      if (!user || user.isActive === false) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      return res.json({
+        claims: {
+          sub: user.id,
+          email: user.email,
+          first_name: user.firstName,
+          last_name: user.lastName,
+          profile_image_url: user.profileImageUrl,
+        },
+      });
+    }
+
+    return res.status(401).json({ message: "Unauthorized" });
+  });
 }
 
-export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
+/**
+ * ✅ Allow both:
+ * - Replit OIDC (passport)
+ * - Email/password session (req.session.userId)
+ */
+export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
+  // Email/password session
+  if (req.session?.userId) {
+    return next();
+  }
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  // Replit / Passport
+  const user = req.user as any;
+  if (!req.isAuthenticated?.() || !user?.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
@@ -149,8 +202,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 
   const refreshToken = user.refresh_token;
   if (!refreshToken) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
+    return res.status(401).json({ message: "Unauthorized" });
   }
 
   try {
@@ -159,7 +211,6 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     updateUserSession(user, tokenResponse);
     return next();
   } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
+    return res.status(401).json({ message: "Unauthorized" });
   }
 };
