@@ -84,6 +84,8 @@
     "xlsx": "^0.18.5",
     "zod": "^3.24.2",
     "zod-validation-error": "^3.4.0"
+    "nodemailer": "^6.9.14"
+
   },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.4.4",
