@@ -9,6 +9,8 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import bcrypt from "bcryptjs";
+import nodemailer from "nodemailer";
+
 
 const upload = multer({
   dest: 'uploads/',
@@ -60,8 +62,6 @@ export async function registerRoutes(
   registerAuthRoutes(app);
 
 // ===== TEST EMAIL (SMTP CHECK) =====
-import nodemailer from "nodemailer";
-
 app.post("/api/email/test", async (req, res) => {
   try {
     const to = req.body?.to;
