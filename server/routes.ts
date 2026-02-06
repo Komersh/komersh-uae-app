@@ -59,7 +59,37 @@ export async function registerRoutes(
   // ✅ Register auth routes AFTER no-cache middleware
   registerAuthRoutes(app);
 
+// ===== TEST EMAIL (SMTP CHECK) =====
+import nodemailer from "nodemailer";
 
+app.post("/api/email/test", async (req, res) => {
+  try {
+    const to = req.body?.to;
+    if (!to) return res.status(400).json({ message: "to is required" });
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || "465"),
+      secure: (process.env.SMTP_SECURE || "true") === "true",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+      to,
+      subject: "Komersh Test Email ✅",
+      html: `<p>If you received this email, SMTP is working 🎉</p>`,
+    });
+
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("TEST EMAIL ERROR:", e);
+    res.status(500).json({ message: e?.message || "Failed to send email" });
+  }
+});
 
   // === EMAIL/PASSWORD LOGIN ===
   app.post("/api/auth/login", async (req, res) => {
