@@ -2,7 +2,13 @@ import { useState, useEffect } from "react";
 import { Layout } from "@/components/ui/Layout";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,22 +19,34 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
+/* =========================
+   Schemas
+========================= */
 const profileSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().optional(),
   profileImageUrl: z.string().optional(),
 });
 
-const passwordSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
-  newPassword: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string().min(1, "Please confirm your password"),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 type PasswordFormData = z.infer<typeof passwordSchema>;
@@ -38,6 +56,9 @@ export default function Account() {
   const { user, isLoading: userLoading } = useAuth();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  /* =========================
+     Profile form
+  ========================= */
   const profileForm = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -57,6 +78,9 @@ export default function Account() {
     }
   }, [user, profileForm]);
 
+  /* =========================
+     Password form
+  ========================= */
   const passwordForm = useForm<PasswordFormData>({
     resolver: zodResolver(passwordSchema),
     defaultValues: {
@@ -66,32 +90,59 @@ export default function Account() {
     },
   });
 
+  /* =========================
+     Mutations
+  ========================= */
+
+  // ✅ Update profile
   const updateProfile = useMutation({
     mutationFn: async (data: ProfileFormData) => {
-      await apiRequest("PUT", "/api/account/profile", data);
+      await apiRequest("PUT", "/api/users/profile", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      toast({ title: "Profile Updated", description: "Your profile has been updated successfully." });
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been updated successfully.",
+      });
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message || "Failed to update profile.", variant: "destructive" });
-    }
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update profile.",
+        variant: "destructive",
+      });
+    },
   });
 
+  // ✅ Change password (IMPORTANT FIX)
   const changePassword = useMutation({
     mutationFn: async (data: PasswordFormData) => {
-      await apiRequest("PUT", "/api/account/password", data);
+      const { currentPassword, newPassword } = data;
+      await apiRequest("PUT", "/api/auth/change-password", {
+        currentPassword,
+        newPassword,
+      });
     },
     onSuccess: () => {
       passwordForm.reset();
-      toast({ title: "Password Changed", description: "Your password has been updated successfully." });
+      toast({
+        title: "Password Changed",
+        description: "Your password has been updated successfully.",
+      });
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message || "Failed to change password.", variant: "destructive" });
-    }
+      toast({
+        title: "Error",
+        description: err.message || "Failed to change password.",
+        variant: "destructive",
+      });
+    },
   });
 
+  /* =========================
+     Handlers
+  ========================= */
   const handleProfileSubmit = (data: ProfileFormData) => {
     updateProfile.mutate(data);
   };
@@ -102,15 +153,15 @@ export default function Account() {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setImagePreview(base64);
-        profileForm.setValue("profileImageUrl", base64);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setImagePreview(base64);
+      profileForm.setValue("profileImageUrl", base64);
+    };
+    reader.readAsDataURL(file);
   };
 
   if (userLoading) {
@@ -123,46 +174,54 @@ export default function Account() {
     );
   }
 
-  const initials = `${user?.firstName?.charAt(0) || ""}${user?.lastName?.charAt(0) || ""}`.toUpperCase() || "U";
+  const initials =
+    `${user?.firstName?.charAt(0) || ""}${user?.lastName?.charAt(0) || ""}`.toUpperCase() ||
+    "U";
 
+  /* =========================
+     UI
+  ========================= */
   return (
     <Layout>
       <div className="max-w-2xl mx-auto space-y-6">
-        <Card className="bg-card border-border">
+        {/* Profile */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5 text-primary" />
               Profile Information
             </CardTitle>
-            <CardDescription>Update your personal information and profile picture</CardDescription>
+            <CardDescription>
+              Update your personal information and profile picture
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...profileForm}>
-              <form onSubmit={profileForm.handleSubmit(handleProfileSubmit)} className="space-y-6">
+              <form
+                onSubmit={profileForm.handleSubmit(handleProfileSubmit)}
+                className="space-y-6"
+              >
                 <div className="flex items-center gap-6">
                   <div className="relative">
                     <Avatar className="h-24 w-24">
-                      <AvatarImage src={imagePreview || user?.profileImageUrl || undefined} />
-                      <AvatarFallback className="text-2xl bg-primary/10 text-primary">{initials}</AvatarFallback>
+                      <AvatarImage
+                        src={imagePreview || user?.profileImageUrl || undefined}
+                      />
+                      <AvatarFallback>{initials}</AvatarFallback>
                     </Avatar>
-                    <label 
-                      htmlFor="profile-image" 
-                      className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full cursor-pointer hover:bg-primary/90 transition-colors"
+                    <label
+                      htmlFor="profile-image"
+                      className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full cursor-pointer"
                     >
                       <Camera className="h-4 w-4" />
-                      <input 
-                        id="profile-image" 
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
+                      <input
+                        id="profile-image"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
                         onChange={handleImageChange}
-                        data-testid="input-profile-image"
                       />
                     </label>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Click the camera icon to upload a new photo</p>
-                    <p className="text-sm text-muted-foreground mt-1">Recommended: Square image, at least 200x200px</p>
                   </div>
                 </div>
 
@@ -174,7 +233,7 @@ export default function Account() {
                       <FormItem>
                         <FormLabel>First Name</FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-first-name" className="bg-background border-border" />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -187,7 +246,7 @@ export default function Account() {
                       <FormItem>
                         <FormLabel>Last Name</FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-last-name" className="bg-background border-border" />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -196,21 +255,11 @@ export default function Account() {
                 </div>
 
                 <div>
-                  <Label className="text-muted-foreground">Email</Label>
-                  <Input 
-                    value={user?.email || ""} 
-                    disabled 
-                    className="bg-muted border-border mt-1.5"
-                    data-testid="input-email-readonly"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Email cannot be changed</p>
+                  <Label>Email</Label>
+                  <Input value={user?.email || ""} disabled />
                 </div>
 
-                <Button 
-                  type="submit" 
-                  disabled={updateProfile.isPending}
-                  data-testid="button-save-profile"
-                >
+                <Button type="submit" disabled={updateProfile.isPending}>
                   {updateProfile.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
@@ -223,17 +272,20 @@ export default function Account() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border">
+        {/* Password */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Lock className="h-5 w-5 text-primary" />
               Change Password
             </CardTitle>
-            <CardDescription>Update your account password</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...passwordForm}>
-              <form onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)} className="space-y-4">
+              <form
+                onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={passwordForm.control}
                   name="currentPassword"
@@ -241,12 +293,7 @@ export default function Account() {
                     <FormItem>
                       <FormLabel>Current Password</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="password" 
-                          {...field} 
-                          data-testid="input-current-password"
-                          className="bg-background border-border"
-                        />
+                        <Input type="password" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -259,12 +306,7 @@ export default function Account() {
                     <FormItem>
                       <FormLabel>New Password</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="password" 
-                          {...field} 
-                          data-testid="input-new-password"
-                          className="bg-background border-border"
-                        />
+                        <Input type="password" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -277,22 +319,14 @@ export default function Account() {
                     <FormItem>
                       <FormLabel>Confirm New Password</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="password" 
-                          {...field} 
-                          data-testid="input-confirm-password"
-                          className="bg-background border-border"
-                        />
+                        <Input type="password" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button 
-                  type="submit" 
-                  disabled={changePassword.isPending}
-                  data-testid="button-change-password"
-                >
+
+                <Button type="submit" disabled={changePassword.isPending}>
                   {changePassword.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
