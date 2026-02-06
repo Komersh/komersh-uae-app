@@ -1168,22 +1168,20 @@ app.post("/api/email/test", async (req, res) => {
     });
   });
 
- // === INVITATIONS ===
+// === INVITATIONS ===
 
-// LIST
+// list
 app.get(api.invitations.list.path, async (req, res) => {
-  const invitations = await storage.getInvitations();
-  res.json(invitations);
+  const invitationsList = await storage.getInvitations();
+  res.json(invitationsList);
 });
 
-// CREATE
+// create
 app.post(api.invitations.create.path, async (req, res) => {
   try {
     const input = api.invitations.create.input.parse(req.body);
 
-    const crypto = await import("crypto");
     const token = crypto.randomBytes(32).toString("hex");
-
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -1194,27 +1192,27 @@ app.post(api.invitations.create.path, async (req, res) => {
       expiresAt,
     });
 
+    await sendInvitationEmail({
+      to: invitation.email,
+      role: invitation.role,
+      token,
+      appUrl: process.env.APP_URL!,
+    });
+
     res.status(201).json(invitation);
   } catch (err: any) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({
-        message: err.errors[0].message,
-        field: err.errors[0].path.join("."),
-      });
-    }
-
     console.error("Create invitation error:", err);
-    res.status(500).json({ message: "Failed to create invitation" });
+    return res.status(500).json({ message: err.message });
   }
 });
 
-// RESEND (create new invitation)
+// resend (UPDATE ONLY)
 app.post("/api/invitations/:id/resend", async (req, res) => {
   try {
-    const id = String(req.params.id);
+    const id = req.params.id; // UUID
 
     const invitations = await storage.getInvitations();
-    const inv = invitations.find((x: any) => String(x.id) === id);
+    const inv = invitations.find((x: any) => x.id === id);
 
     if (!inv) {
       return res.status(404).json({ message: "Invitation not found" });
@@ -1224,30 +1222,23 @@ app.post("/api/invitations/:id/resend", async (req, res) => {
       return res.status(400).json({ message: "Invitation already accepted" });
     }
 
-    const crypto = await import("crypto");
     const token = crypto.randomBytes(32).toString("hex");
-
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    const newInvitation = await storage.createInvitation({
-      email: inv.email,
-      role: inv.role,
-      token,
-      expiresAt,
-    });
+    await storage.updateInvitation(inv.id, { token, expiresAt });
 
     await sendInvitationEmail({
-      to: newInvitation.email,
-      role: newInvitation.role,
-      token: newInvitation.token,
+      to: inv.email,
+      role: inv.role,
+      token,
       appUrl: process.env.APP_URL!,
     });
 
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (err: any) {
     console.error("Resend invitation error:", err);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 });
 
