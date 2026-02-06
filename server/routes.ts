@@ -22,6 +22,16 @@ export async function registerRoutes(
   // Setup Authentication
   await setupAuth(app);
   registerAuthRoutes(app);
+    // ✅ Disable caching for ALL API responses (prevents 304 Not Modified issues)
+  app.set("etag", false);
+  app.use("/api", (req, res, next) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.setHeader("Surrogate-Control", "no-store");
+    next();
+  });
+
 
   // === EMAIL/PASSWORD LOGIN ===
   app.post("/api/auth/login", async (req, res) => {
@@ -985,27 +995,54 @@ export async function registerRoutes(
   });
 
   // === ACCOUNT (Current User) ===
+  // === ACCOUNT (Current User) ===
   app.put('/api/account/profile', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const profileSchema = z.object({
         firstName: z.string().min(1, "First name is required"),
         lastName: z.string().optional(),
         profileImageUrl: z.string().optional(),
       });
-      
+
       const input = profileSchema.parse(req.body);
+
+      // ✅ Update DB
       await storage.updateUserProfile(userId, {
         firstName: input.firstName,
         lastName: input.lastName || null,
         profileImageUrl: input.profileImageUrl || null,
       });
-      
-      res.json({ success: true });
+
+      // ✅ Get updated user (fresh)
+      const users = await storage.getUsers();
+      const updatedUser = users.find(u => u.id === userId);
+
+      // ✅ Update session claims (IMPORTANT: keeps /api/auth/user in sync)
+      const sess: any = (req as any).session;
+      if (sess?.user?.claims) {
+        sess.user.claims.first_name = updatedUser?.firstName ?? input.firstName;
+        sess.user.claims.last_name = updatedUser?.lastName ?? (input.lastName || "");
+        sess.user.claims.profile_image_url = updatedUser?.profileImageUrl ?? (input.profileImageUrl || "");
+      }
+
+      return res.json({
+        success: true,
+        user: updatedUser
+          ? {
+              id: updatedUser.id,
+              email: updatedUser.email,
+              firstName: updatedUser.firstName,
+              lastName: updatedUser.lastName,
+              profileImageUrl: updatedUser.profileImageUrl,
+              role: updatedUser.role,
+            }
+          : null,
+      });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({
@@ -1016,6 +1053,7 @@ export async function registerRoutes(
       throw err;
     }
   });
+
 
   app.put('/api/account/password', isAuthenticated, async (req: any, res) => {
     try {
