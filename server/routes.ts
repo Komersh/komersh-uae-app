@@ -2,7 +2,6 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api, buildUrl } from "@shared/routes";
-import { z } from "zod";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { EXCHANGE_RATES } from "@shared/schema";
 import multer from "multer";
@@ -1170,15 +1169,14 @@ app.post("/api/email/test", async (req, res) => {
   });
 
  // === INVITATIONS ===
-import { z } from "zod";
 
-// LIST invitations
+// LIST
 app.get(api.invitations.list.path, async (req, res) => {
   const invitations = await storage.getInvitations();
   res.json(invitations);
 });
 
-// CREATE invitation
+// CREATE
 app.post(api.invitations.create.path, async (req, res) => {
   try {
     const input = api.invitations.create.input.parse(req.body);
@@ -1196,7 +1194,6 @@ app.post(api.invitations.create.path, async (req, res) => {
       expiresAt,
     });
 
-    // 🔔 هنا لاحقًا يمكن إرسال الإيميل
     res.status(201).json(invitation);
   } catch (err: any) {
     if (err instanceof z.ZodError) {
@@ -1205,15 +1202,16 @@ app.post(api.invitations.create.path, async (req, res) => {
         field: err.errors[0].path.join("."),
       });
     }
+
     console.error("Create invitation error:", err);
-    return res.status(500).json({ message: "Failed to create invitation" });
+    res.status(500).json({ message: "Failed to create invitation" });
   }
 });
 
-// RESEND invitation (⚠️ creates NEW invitation instead of update)
+// RESEND (create new invitation)
 app.post("/api/invitations/:id/resend", async (req, res) => {
   try {
-    const id = String(req.params.id); // UUID
+    const id = String(req.params.id);
 
     const invitations = await storage.getInvitations();
     const inv = invitations.find((x: any) => String(x.id) === id);
@@ -1232,7 +1230,6 @@ app.post("/api/invitations/:id/resend", async (req, res) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // ✅ create NEW invitation (no update function needed)
     const newInvitation = await storage.createInvitation({
       email: inv.email,
       role: inv.role,
@@ -1240,7 +1237,6 @@ app.post("/api/invitations/:id/resend", async (req, res) => {
       expiresAt,
     });
 
-    // ✅ send email again
     await sendInvitationEmail({
       to: newInvitation.email,
       role: newInvitation.role,
@@ -1248,15 +1244,12 @@ app.post("/api/invitations/:id/resend", async (req, res) => {
       appUrl: process.env.APP_URL!,
     });
 
-    return res.json({ success: true });
+    res.json({ success: true });
   } catch (err: any) {
     console.error("Resend invitation error:", err);
-    return res
-      .status(500)
-      .json({ message: err?.message || "Failed to resend invitation" });
+    res.status(500).json({ message: err.message });
   }
 });
-
 
 
   // === NOTIFICATIONS ===
