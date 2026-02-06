@@ -1,9 +1,17 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import pg from "pg";
+
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
+
+// ✅ مهم جداً مع Railway/Proxy
+app.set("trust proxy", 1);
+
 const httpServer = createServer(app);
 
 declare module "http" {
@@ -33,6 +41,50 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+// ✅ Sessions (Postgres store) — لازم قبل registerRoutes
+if (!process.env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET must be set");
+}
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL must be set");
+}
+
+const PgSession = connectPgSimple(session);
+const { Pool } = pg;
+
+const sessionPool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  // optional hardening:
+  // ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined,
+});
+
+app.use(
+  session({
+    name: "komersh.sid",
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+
+    // ✅ مهم مع proxy
+    proxy: true,
+
+    store: new PgSession({
+      pool: sessionPool,
+      tableName: "sessions",
+      createTableIfMissing: true,
+    }),
+
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // Railway = true
+      sameSite: "lax",
+      // optional:
+      // maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+    },
+  }),
+);
+
+// Logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -51,7 +103,6 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       log(logLine);
     }
   });
@@ -75,9 +126,6 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -85,10 +133,6 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
