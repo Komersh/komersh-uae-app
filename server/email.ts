@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 
-type InvitationEmailArgs = {
+export type InvitationEmailArgs = {
   to: string;
   role: string;
   token: string;
@@ -8,7 +8,7 @@ type InvitationEmailArgs = {
   tempPassword?: string;
 };
 
-async function sendInvitationEmail({
+export async function sendInvitationEmail({
   to,
   role,
   token,
@@ -39,13 +39,10 @@ async function sendInvitationEmail({
           ? `<p><b>Temporary password:</b> ${tempPassword}</p>`
           : ""
       }
-      <p>
-        <a href="${link}">Click here to accept the invitation</a>
-      </p>
+      <p><a href="${link}">Click here to accept the invitation</a></p>
     `,
   });
 }
 
-module.exports = {
-  sendInvitationEmail,
-};
+// (اختياري بس مفيد)
+export default sendInvitationEmail;
