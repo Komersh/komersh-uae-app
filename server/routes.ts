@@ -10,8 +10,7 @@ import fs from "fs";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
-const emailMod = require("./email");
-const sendInvitationEmail = emailMod.sendInvitationEmail || emailMod.default;
+import { sendInvitationEmail } from "./email";
 
 
 
@@ -1288,19 +1287,24 @@ app.post("/api/invitations/:id/resend", async (req, res) => {
       return res.status(400).json({ message: "Invitation already accepted" });
     }
 
-    const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    // generate new token
+const token = crypto.randomBytes(32).toString("hex");
+const expiresAt = new Date();
+expiresAt.setDate(expiresAt.getDate() + 7);
 
-    await storage.updateInvitation(inv.id, { token, expiresAt });
+// update invitation
+await storage.updateInvitation(inv.id, { token, expiresAt });
 
-   await sendInvitationEmail({
-  to: invitation.email,
-  role: invitation.role,
+// resend email (NO temp password here)
+await sendInvitationEmail({
+  to: inv.email,
+  role: inv.role,
   token,
   appUrl: process.env.APP_URL!,
-  from: process.env.MAIL_FROM!,
 });
+
+return res.json({ success: true });
+
 
 
     return res.json({ success: true });

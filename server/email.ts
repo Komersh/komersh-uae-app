@@ -1,18 +1,20 @@
 import nodemailer from "nodemailer";
 
+type InvitationEmailArgs = {
+  to: string;
+  role: string;
+  token: string;
+  appUrl: string;
+  tempPassword?: string;
+};
+
 async function sendInvitationEmail({
   to,
   role,
   token,
   appUrl,
   tempPassword,
-}: {
-  to: string;
-  role: string;
-  token: string;
-  appUrl: string;
-  tempPassword?: string;
-}) {
+}: InvitationEmailArgs) {
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -32,13 +34,11 @@ async function sendInvitationEmail({
     html: `
       <h2>You have been invited to Komersh</h2>
       <p>Role: <b>${role}</b></p>
-
       ${
         tempPassword
           ? `<p><b>Temporary password:</b> ${tempPassword}</p>`
           : ""
       }
-
       <p>
         <a href="${link}">Click here to accept the invitation</a>
       </p>
