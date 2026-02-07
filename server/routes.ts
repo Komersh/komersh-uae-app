@@ -10,7 +10,8 @@ import fs from "fs";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
-import { sendInvitationEmail } from "./email";
+import sendInvitationEmail, { sendInvitationEmail as sendInvitationEmailNamed } from "./email";
+
 
 
 
@@ -107,12 +108,14 @@ app.get("/accept-invitation", async (req, res) => {
 
     await sendInvitationEmail({
     // 📧 send email with password
- to: inv.email,
-  role: inv.role,
+await sendInvitationEmail({
+  to: invitation.email,
+  role: invitation.role,
   token,
   appUrl: process.env.APP_URL!,
-  from: process.env.MAIL_FROM!,
+  tempPassword,
 });
+
 
     // 🟢 redirect to success page
     return res.redirect(
@@ -1255,14 +1258,12 @@ app.post(api.invitations.create.path, async (req, res) => {
       role: input.role,
       token,
       expiresAt,
-    });
-
-    await sendInvitationEmail({
-      to: invitation.email,
-      role: invitation.role,
-      token,
-      appUrl: process.env.APP_URL!,
-    });
+await sendInvitationEmail({
+  to: invitation.email,
+  role: invitation.role,
+  token,
+  appUrl: process.env.APP_URL!,
+});
 
     res.status(201).json(invitation);
   } catch (err: any) {
@@ -1302,6 +1303,7 @@ await sendInvitationEmail({
   token,
   appUrl: process.env.APP_URL!,
 });
+
 
 return res.json({ success: true });
 
