@@ -12,12 +12,7 @@ import nodemailer from "nodemailer";
 import crypto from "crypto";
 import * as emailModule from "./email";
 
-const sendInvitationEmail =
-  (emailModule as any).sendInvitationEmail ?? (emailModule as any).default;
-
-if (typeof sendInvitationEmail !== "function") {
-  throw new Error("sendInvitationEmail export not found (email.ts)");
-}
+import sendInvitationEmail from "./email";
 
 
 
