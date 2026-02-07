@@ -10,7 +10,15 @@ import fs from "fs";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
-import sendInvitationEmail, { sendInvitationEmail as sendInvitationEmailNamed } from "./email";
+import * as emailModule from "./email";
+
+const sendInvitationEmail =
+  (emailModule as any).sendInvitationEmail ?? (emailModule as any).default;
+
+if (typeof sendInvitationEmail !== "function") {
+  throw new Error("sendInvitationEmail export not found (email.ts)");
+}
+
 
 
 
@@ -106,7 +114,6 @@ app.get("/accept-invitation", async (req, res) => {
     // ✅ mark invitation as used
     await storage.markInvitationUsed(invitation.id);
 
-    await sendInvitationEmail({
     // 📧 send email with password
 await sendInvitationEmail({
   to: invitation.email,
@@ -1239,12 +1246,6 @@ app.post("/api/email/test", async (req, res) => {
 // === INVITATIONS ===
 
 // list
-app.get(api.invitations.list.path, async (req, res) => {
-  const invitationsList = await storage.getInvitations();
-  res.json(invitationsList);
-});
-
-// create
 app.post(api.invitations.create.path, async (req, res) => {
   try {
     const input = api.invitations.create.input.parse(req.body);
@@ -1258,17 +1259,19 @@ app.post(api.invitations.create.path, async (req, res) => {
       role: input.role,
       token,
       expiresAt,
-await sendInvitationEmail({
-  to: invitation.email,
-  role: invitation.role,
-  token,
-  appUrl: process.env.APP_URL!,
-});
+    });
 
-    res.status(201).json(invitation);
+    await sendInvitationEmail({
+      to: invitation.email,
+      role: invitation.role,
+      token,
+      appUrl: process.env.APP_URL!,
+    });
+
+    return res.status(201).json(invitation);
   } catch (err: any) {
     console.error("Create invitation error:", err);
-    return res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err?.message || "Failed to create invitation" });
   }
 });
 
