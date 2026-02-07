@@ -18,9 +18,24 @@ export async function sendInvitationEmail({ to, role, token, appUrl }: SendInvit
   const resend = new Resend(apiKey);
 
   const inviteLink = `${appUrl}/accept-invitation?token=${token}`;
+export async function sendInvitationEmail({
+  to,
+  role,
+  token,
+  appUrl,
+  tempPassword,
+}: {
+  to: string;
+  role: string;
+  token: string;
+  appUrl: string;
+  tempPassword?: string;
+}) {
+  const inviteLink = `${appUrl}/accept-invitation?token=${token}`;
+  const loginLink = `${appUrl}/login`;
 
-  await resend.emails.send({
-    from: process.env.MAIL_FROM || "Komersh <noreply@komersh.com>",
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM,
     to,
     subject: "You're invited to Komersh",
     html: `
@@ -28,6 +43,18 @@ export async function sendInvitationEmail({ to, role, token, appUrl }: SendInvit
       <p>Role: <b>${role}</b></p>
       <p>Click the link below to accept the invitation:</p>
       <a href="${inviteLink}">${inviteLink}</a>
+
+      ${
+        tempPassword
+          ? `
+        <hr />
+        <p><b>Temporary password:</b> <code>${tempPassword}</code></p>
+        <p>Login here:</p>
+        <a href="${loginLink}">${loginLink}</a>
+        <p><b>Important:</b> Please change your password from Account page after logging in.</p>
+      `
+          : ""
+      }
     `,
   });
 }
