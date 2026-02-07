@@ -1,40 +1,42 @@
-import nodemailer from "nodemailer";
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+import { Resend } from "resend";
 
 async function sendInvitationEmail({
   to,
   role,
   token,
   appUrl,
+  from,
+  tempPassword,
 }: {
   to: string;
   role: string;
   token: string;
   appUrl: string;
+  from: string;
+  tempPassword?: string;
 }) {
-  const inviteLink = `${appUrl}/accept-invitation?token=${token}`;
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM,
-    to,
-    subject: "You're invited to Komersh",
-    html: `
-      <h2>You have been invited</h2>
-      <p>Role: <b>${role}</b></p>
+  const link = `${appUrl}/accept-invitation?token=${token}`;
+
+  const subject = "You're invited to Komersh";
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h2>You're invited to Komersh</h2>
+      <p><b>Role:</b> ${role}</p>
+      ${tempPassword ? `<p><b>Temporary password:</b> ${tempPassword}</p>` : ""}
       <p>Click the link below to accept the invitation:</p>
-      <a href="${inviteLink}">${inviteLink}</a>
-    `,
+      <p><a href="${link}">${link}</a></p>
+    </div>
+  `;
+
+  await resend.emails.send({
+    from,
+    to,
+    subject,
+    html,
   });
 }
 
-// ✅ IMPORTANT: CommonJS export (prevents "Unexpected export" in Railway build)
+// ✅ THIS is the important part for CJS bundle
 module.exports = { sendInvitationEmail };
