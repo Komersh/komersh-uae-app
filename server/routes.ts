@@ -10,7 +10,8 @@ import fs from "fs";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
-const { sendInvitationEmail } = require("./email");
+import { sendInvitationEmail } from "./email";
+
 
 
 
@@ -1268,10 +1269,10 @@ app.post(api.invitations.create.path, async (req, res) => {
   }
 });
 
-// resend (UPDATE ONLY)
+// ✅ RESEND invitation (UUID id)
 app.post("/api/invitations/:id/resend", async (req, res) => {
   try {
-    const id = req.params.id; // UUID
+    const id = req.params.id; // ✅ UUID string (NO parseInt)
 
     const invitations = await storage.getInvitations();
     const inv = invitations.find((x: any) => x.id === id);
@@ -1300,9 +1301,12 @@ app.post("/api/invitations/:id/resend", async (req, res) => {
     return res.json({ success: true });
   } catch (err: any) {
     console.error("Resend invitation error:", err);
-    return res.status(500).json({ message: err.message });
+    return res.status(500).json({
+      message: err?.message || "Failed to resend invitation",
+    });
   }
 });
+
 
 
   // === NOTIFICATIONS ===
