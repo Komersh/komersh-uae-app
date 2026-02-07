@@ -1,20 +1,18 @@
 import nodemailer from "nodemailer";
 
-export type InvitationEmailArgs = {
-  to: string;
-  role: string;
-  token: string;
-  appUrl: string;
-  tempPassword?: string;
-};
-
 export async function sendInvitationEmail({
   to,
   role,
   token,
   appUrl,
   tempPassword,
-}: InvitationEmailArgs) {
+}: {
+  to: string;
+  role: string;
+  token: string;
+  appUrl: string;
+  tempPassword?: string;
+}) {
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -44,5 +42,4 @@ export async function sendInvitationEmail({
   });
 }
 
-// (اختياري بس مفيد)
 export default sendInvitationEmail;
