@@ -10,7 +10,8 @@ import fs from "fs";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
-import { sendInvitationEmail } from "./email";
+const { sendInvitationEmail } = require("./email");
+
 
 
 

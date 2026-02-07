@@ -1,38 +1,27 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-type SendInvitationArgs = {
-  to: string;
-  role: string;
-  token: string;
-  appUrl: string;
-};
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  secure: process.env.SMTP_SECURE === "true",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
-export async function sendInvitationEmail({ to, role, token, appUrl }: SendInvitationArgs) {
-  const apiKey = process.env.RESEND_API_KEY;
-
-  // ✅ لا تكسّر السيرفر لو المتغير ناقص
-  if (!apiKey) {
-    throw new Error("RESEND_API_KEY is missing in environment variables");
-  }
-
-  const resend = new Resend(apiKey);
-
-  const inviteLink = `${appUrl}/accept-invitation?token=${token}`;
-export async function sendInvitationEmail({
+async function sendInvitationEmail({
   to,
   role,
   token,
   appUrl,
-  tempPassword,
 }: {
   to: string;
   role: string;
   token: string;
   appUrl: string;
-  tempPassword?: string;
 }) {
   const inviteLink = `${appUrl}/accept-invitation?token=${token}`;
-  const loginLink = `${appUrl}/login`;
 
   await transporter.sendMail({
     from: process.env.MAIL_FROM,
@@ -43,18 +32,9 @@ export async function sendInvitationEmail({
       <p>Role: <b>${role}</b></p>
       <p>Click the link below to accept the invitation:</p>
       <a href="${inviteLink}">${inviteLink}</a>
-
-      ${
-        tempPassword
-          ? `
-        <hr />
-        <p><b>Temporary password:</b> <code>${tempPassword}</code></p>
-        <p>Login here:</p>
-        <a href="${loginLink}">${loginLink}</a>
-        <p><b>Important:</b> Please change your password from Account page after logging in.</p>
-      `
-          : ""
-      }
     `,
   });
 }
+
+// ✅ IMPORTANT: CommonJS export (prevents "Unexpected export" in Railway build)
+module.exports = { sendInvitationEmail };
