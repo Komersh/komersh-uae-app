@@ -10,7 +10,9 @@ import fs from "fs";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
-const { sendInvitationEmail } = require("./email");
+const emailMod = require("./email");
+const sendInvitationEmail = emailMod.sendInvitationEmail || emailMod.default;
+
 
 
 
@@ -104,9 +106,9 @@ app.get("/accept-invitation", async (req, res) => {
     // ✅ mark invitation as used
     await storage.markInvitationUsed(invitation.id);
 
+    await sendInvitationEmail({
     // 📧 send email with password
-   await sendInvitationEmail({
-  to: inv.email,
+ to: inv.email,
   role: inv.role,
   token,
   appUrl: process.env.APP_URL!,
@@ -1292,12 +1294,14 @@ app.post("/api/invitations/:id/resend", async (req, res) => {
 
     await storage.updateInvitation(inv.id, { token, expiresAt });
 
-    await sendInvitationEmail({
-      to: inv.email,
-      role: inv.role,
-      token,
-      appUrl: process.env.APP_URL!,
-    });
+   await sendInvitationEmail({
+  to: invitation.email,
+  role: invitation.role,
+  token,
+  appUrl: process.env.APP_URL!,
+  from: process.env.MAIL_FROM!,
+});
+
 
     return res.json({ success: true });
   } catch (err: any) {

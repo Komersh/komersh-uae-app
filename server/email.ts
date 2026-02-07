@@ -1,3 +1,8 @@
+okay i made the edits not tell me what to write the git push things to push
+
+also here is the email.ts if you want to edit sth before push
+
+
 import nodemailer from "nodemailer";
 
 async function sendInvitationEmail({
@@ -23,26 +28,26 @@ async function sendInvitationEmail({
     },
   });
 
-  const link = `${appUrl}/accept-invitation?token=${token}`;
+  const link = ${appUrl}/accept-invitation?token=${token};
 
   await transporter.sendMail({
-    from: `"Komersh" <${process.env.SMTP_FROM}>`,
+    from: "Komersh" <${process.env.SMTP_FROM}>,
     to,
     subject: "You're invited to Komersh",
-    html: `
+    html: 
       <h2>You have been invited to Komersh</h2>
       <p>Role: <b>${role}</b></p>
 
       ${
         tempPassword
-          ? `<p><b>Temporary password:</b> ${tempPassword}</p>`
+          ? <p><b>Temporary password:</b> ${tempPassword}</p>
           : ""
       }
 
       <p>
         <a href="${link}">Click here to accept the invitation</a>
       </p>
-    `,
+    ,
   });
 }
 
