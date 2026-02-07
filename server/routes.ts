@@ -14,6 +14,9 @@ import { sendInvitationEmail } from "./email";
 
 
 
+function generateTempPassword(length = 12) {
+  return crypto.randomBytes(18).toString("base64url").slice(0, length);
+}
 
 const upload = multer({
   dest: 'uploads/',
@@ -60,6 +63,62 @@ export async function registerRoutes(
     res.setHeader("Surrogate-Control", "no-store");
     next();
   });
+// ACCEPT INVITATION
+app.get("/accept-invitation", async (req, res) => {
+  try {
+    const token = req.query.token as string;
+
+    if (!token) {
+      return res.status(400).send("Invalid invitation token");
+    }
+
+    const invitations = await storage.getInvitations();
+    const invitation = invitations.find((i: any) => i.token === token);
+
+    if (!invitation) {
+      return res.status(404).send("Invitation not found");
+    }
+
+    if (invitation.used) {
+      return res.status(400).send("Invitation already used");
+    }
+
+    if (new Date(invitation.expiresAt) < new Date()) {
+      return res.status(400).send("Invitation expired");
+    }
+
+    // 🔐 generate temp password
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 12);
+
+    // 👤 create user OR update existing
+    await storage.createUserFromInvitation({
+      email: invitation.email,
+      role: invitation.role,
+      passwordHash,
+    });
+
+    // ✅ mark invitation as used
+    await storage.markInvitationUsed(invitation.id);
+
+    // 📧 send email with password
+    await sendInvitationEmail({
+      to: invitation.email,
+      role: invitation.role,
+      token: invitation.token,
+      appUrl: process.env.APP_URL!,
+      tempPassword,
+    });
+
+    // 🟢 redirect to success page
+    return res.redirect(
+      `${process.env.APP_URL}/accept-invitation?success=true`
+    );
+  } catch (err: any) {
+    console.error("Accept invitation error:", err);
+    return res.status(500).send("Something went wrong");
+  }
+});
 
   // ✅ Register auth routes AFTER no-cache middleware
   registerAuthRoutes(app);
