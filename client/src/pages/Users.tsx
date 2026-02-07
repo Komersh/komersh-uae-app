@@ -333,8 +333,7 @@ export default function UsersPage() {
                             {inv.email}
                           </div>
                         </TableCell>
-                        <TableCell className="text-right">
-  <Button
+                        <TableCell className="text-right">   <Button
     variant="outline"
     size="sm"
     onClick={() => resendInvitation.mutate(inv.id)}
@@ -343,6 +342,7 @@ export default function UsersPage() {
     Resend
   </Button>
 </TableCell>
+
 
                         <TableCell>
                           <RoleBadge role={inv.role} />
