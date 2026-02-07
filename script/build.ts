@@ -52,9 +52,24 @@ async function buildAll() {
     bundle: true,
     format: "cjs",
     outfile: "dist/index.cjs",
+
+    // ✅ IMPORTANT: ensure TS/TSX are parsed correctly
+    loader: {
+      ".ts": "ts",
+      ".tsx": "tsx",
+    },
+
+    // ✅ ensure esbuild uses your TS config (paths, module settings, etc.)
+    tsconfig: "tsconfig.json",
+
+    // ✅ good defaults for Node runtime
+    packages: "external",
+    target: "node22",
+
     define: {
       "process.env.NODE_ENV": '"production"',
     },
+
     minify: true,
     external: externals,
     logLevel: "info",
