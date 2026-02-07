@@ -1,42 +1,51 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 async function sendInvitationEmail({
   to,
   role,
   token,
   appUrl,
-  from,
   tempPassword,
 }: {
   to: string;
   role: string;
   token: string;
   appUrl: string;
-  from: string;
   tempPassword?: string;
 }) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
 
   const link = `${appUrl}/accept-invitation?token=${token}`;
 
-  const subject = "You're invited to Komersh";
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-      <h2>You're invited to Komersh</h2>
-      <p><b>Role:</b> ${role}</p>
-      ${tempPassword ? `<p><b>Temporary password:</b> ${tempPassword}</p>` : ""}
-      <p>Click the link below to accept the invitation:</p>
-      <p><a href="${link}">${link}</a></p>
-    </div>
-  `;
-
-  await resend.emails.send({
-    from,
+  await transporter.sendMail({
+    from: `"Komersh" <${process.env.SMTP_FROM}>`,
     to,
-    subject,
-    html,
+    subject: "You're invited to Komersh",
+    html: `
+      <h2>You have been invited to Komersh</h2>
+      <p>Role: <b>${role}</b></p>
+
+      ${
+        tempPassword
+          ? `<p><b>Temporary password:</b> ${tempPassword}</p>`
+          : ""
+      }
+
+      <p>
+        <a href="${link}">Click here to accept the invitation</a>
+      </p>
+    `,
   });
 }
 
-// ✅ THIS is the important part for CJS bundle
-module.exports = { sendInvitationEmail };
+module.exports = {
+  sendInvitationEmail,
+};
