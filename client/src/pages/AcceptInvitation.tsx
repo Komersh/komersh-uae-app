@@ -1,98 +1,81 @@
-<Card>
-  <CardHeader>
-    <CardTitle>Pending Invitations</CardTitle>
-    <CardDescription>Invitations awaiting acceptance</CardDescription>
-  </CardHeader>
+import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "wouter";
+import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { apiRequest } from "@/lib/queryClient";
 
-  <CardContent>
-    <div className="rounded-md border overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Email</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Invited</TableHead>
-            <TableHead>Expires</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
+export default function AcceptInvitation() {
+  const [, setLocation] = useLocation();
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [message, setMessage] = useState<string>("Processing invitation...");
 
-        <TableBody>
-          {invitationsLoading ? (
-            <TableRow>
-              <TableCell colSpan={6} className="text-center py-8">
-                Loading...
-              </TableCell>
-            </TableRow>
-          ) : !invitations?.length ? (
-            <TableRow>
-              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                No pending invitations.
-              </TableCell>
-            </TableRow>
-          ) : (
-            invitations.map((inv) => (
-              <TableRow key={inv.id}>
-                <TableCell className="font-medium">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    {inv.email}
-                  </div>
-                </TableCell>
+  const token = useMemo(() => {
+    const url = new URL(window.location.href);
+    return url.searchParams.get("token") || "";
+  }, []);
 
-                <TableCell>
-                  <RoleBadge role={inv.role} />
-                </TableCell>
+  useEffect(() => {
+    let cancelled = false;
 
-                <TableCell className="text-muted-foreground">
-                  {inv.createdAt ? format(new Date(inv.createdAt), "MMM d, yyyy") : "-"}
-                </TableCell>
+    async function run() {
+      if (!token) {
+        setStatus("error");
+        setMessage("Missing token in the invitation link.");
+        return;
+      }
 
-                <TableCell className="text-muted-foreground">
-                  {inv.expiresAt ? format(new Date(inv.expiresAt), "MMM d, yyyy") : "-"}
-                </TableCell>
+      try {
+        // ✅ Adjust endpoint if yours is different
+        await apiRequest("POST", "/api/invitations/accept", { token });
 
-                <TableCell>
-                  {inv.used ? (
-                    <Badge
-                      variant="outline"
-                      className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                    >
-                      <CheckCircle className="h-3 w-3 mr-1" /> Accepted
-                    </Badge>
-                  ) : new Date(inv.expiresAt) < new Date() ? (
-                    <Badge
-                      variant="outline"
-                      className="bg-destructive/10 text-destructive border-destructive/20"
-                    >
-                      <XCircle className="h-3 w-3 mr-1" /> Expired
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="bg-amber-500/10 text-amber-600 border-amber-500/20"
-                    >
-                      <Clock className="h-3 w-3 mr-1" /> Pending
-                    </Badge>
-                  )}
-                </TableCell>
+        if (cancelled) return;
+        setStatus("success");
+        setMessage("Invitation accepted successfully. You can login now.");
+      } catch (e: any) {
+        if (cancelled) return;
+        setStatus("error");
+        setMessage(e?.message || "Failed to accept invitation.");
+      }
+    }
 
-                <TableCell className="text-right">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => resendInvitation.mutate(inv.id)}
-                    disabled={resendInvitation.isPending}
-                  >
-                    Resend
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+      <Card className="w-full max-w-lg">
+        <CardHeader>
+          <CardTitle>Accept Invitation</CardTitle>
+          <CardDescription>We are verifying your invitation link</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            {status === "loading" ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : status === "success" ? (
+              <CheckCircle className="h-6 w-6" />
+            ) : (
+              <XCircle className="h-6 w-6" />
+            )}
+            <div className="text-sm">{message}</div>
+          </div>
+
+          {status !== "loading" && (
+            <div className="flex gap-2">
+              <Button onClick={() => setLocation("/")} variant="outline">
+                Go Home
+              </Button>
+              <Button onClick={() => setLocation("/")} >
+                Login
+              </Button>
+            </div>
           )}
-        </TableBody>
-      </Table>
+        </CardContent>
+      </Card>
     </div>
-  </CardContent>
-</Card>
+  );
+}
