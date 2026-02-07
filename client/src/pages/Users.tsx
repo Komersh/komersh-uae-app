@@ -17,6 +17,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, RotateCw } from "lucide-react";
+import { useState } from "react"
 import type { User, Invitation } from "@shared/models/auth";
 
 const ROLES = ["admin", "founder", "marketing", "warehouse", "viewer"] as const;
@@ -27,6 +31,7 @@ const inviteSchema = z.object({
 });
 
 export default function UsersPage() {
+
   const { toast } = useToast();
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   
@@ -38,6 +43,25 @@ export default function UsersPage() {
     queryKey: ["/api/invitations"],
   });
 
+  // ✅ هون بالزبط الصق كود resendInvitation
+  const resendInvitation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("POST", `/api/invitations/${id}/resend`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Invitation sent",
+        description: "The invitation email has been resent successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to resend invitation",
+        variant: "destructive",
+      });
+    },
+  });
   const updateUserRole = useMutation({
     mutationFn: async ({ id, role }: { id: string; role: string }) => {
       await apiRequest("PUT", `/api/users/${id}/role`, { role });
@@ -309,6 +333,17 @@ export default function UsersPage() {
                             {inv.email}
                           </div>
                         </TableCell>
+                        <TableCell className="text-right">
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={() => resendInvitation.mutate(inv.id)}
+    disabled={resendInvitation.isPending}
+  >
+    Resend
+  </Button>
+</TableCell>
+
                         <TableCell>
                           <RoleBadge role={inv.role} />
                         </TableCell>
